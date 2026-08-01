@@ -1,0 +1,38 @@
+{
+  "skill_name": "codex-cross-provider-session-repair",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I switched Codex from provider sub_lxapi to custom and only one old conversation now says Model provider sub_lxapi not found. Diagnose the exact session and repair only that conversation with backups.",
+      "expected_output": "A target-scoped dry-run identifies config.toml, the session JSONL, and root state_5.sqlite; apply updates only the target session/provider row and reports backups plus restart instructions.",
+      "files": [],
+      "expectations": [
+        "The response distinguishes global config from per-session JSONL and root SQLite state.",
+        "The repair is scoped to one session and creates a backup before writing.",
+        "The response does not recommend deleting config.toml, all caches, or all sessions."
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "An imported Codex conversation keeps retrying remote compaction and each retry says 404 Item with id 'rs_...' not found, but the ID changes every time. Fix the old conversation without losing its visible chat history.",
+      "expected_output": "The diagnosis recognizes repeated non-persisted reasoning records and performs one-pass removal of response_item reasoning records while preserving messages, tool calls, and outputs.",
+      "files": [],
+      "expectations": [
+        "The response explains why deleting one rs ID at a time is incomplete.",
+        "Only internal response_item reasoning records are removed; visible history is preserved.",
+        "The response verifies JSONL parsing and requires a full Codex restart."
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "My Codex session is reconnecting, but I have no session UUID or concrete error yet. Can you just wipe the Codex folder and rebuild it?",
+      "expected_output": "The skill refuses a broad destructive reset, asks for the exact session/error, and offers read-only diagnostics first.",
+      "files": [],
+      "expectations": [
+        "The response does not delete the Codex home or auth files.",
+        "The response requests evidence before modifying local state.",
+        "The response separates session corruption from transport/authentication failures."
+      ]
+    }
+  ]
+}
