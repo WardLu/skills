@@ -4,7 +4,7 @@
 
 `codex-cross-provider-session-repair` is a small, backup-first Codex Skill for recovering an old Codex Desktop conversation after a provider switch, import, or fork.
 
-[简体中文](README.zh-CN.md) · [Install](#install) · [Usage](#usage) · [Development](#development) · [Versioning and upgrades](#versioning-and-upgrades) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+[English](README.md) · [简体中文](README.zh-CN.md) · [Install](#install) · [Usage](#usage) · [Development](#development) · [Versioning and upgrades](#versioning-and-upgrades) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
 
 It addresses two failure modes that look similar in the UI:
 
