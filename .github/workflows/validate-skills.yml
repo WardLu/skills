@@ -1,0 +1,31 @@
+name: Validate skills
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install validator dependency
+        run: python -m pip install --disable-pip-version-check pyyaml
+      - name: Validate skill metadata
+        run: |
+          python - <<'PY'
+          import pathlib, subprocess, sys
+          validator = pathlib.Path.home() / '.agents' / 'skills' / 'skill-creator' / 'scripts' / 'quick_validate.py'
+          root = pathlib.Path('codex-cross-provider-session-repair')
+          if validator.exists():
+              subprocess.check_call([sys.executable, str(validator), str(root)])
+          else:
+              text = (root / 'SKILL.md').read_text(encoding='utf-8')
+              assert text.startswith('---\n') and '\nname: codex-cross-provider-session-repair\n' in text
+          PY
+      - name: Run offline tests
+        run: python -m unittest discover -s codex-cross-provider-session-repair/tests -v
