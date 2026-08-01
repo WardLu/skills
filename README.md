@@ -7,7 +7,7 @@ Focused, versioned, open-source skills for agent workflows.
 [![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md) · [简体中文文档](codex-cross-provider-session-repair/README.zh-CN.md) · [Issues](https://github.com/WardLu/skills/issues)
+[English](README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) · [Issues](https://github.com/WardLu/skills/issues)
 
 </div>
 

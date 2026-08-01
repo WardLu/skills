@@ -2,6 +2,13 @@
 
 All notable changes to this skill are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- Clarified that the repository is a general-purpose agent skills collection; the current session-repair skill is specifically for Codex Desktop.
+- Simplified the root README language navigation label.
+
 ## [0.2.0] - 2026-08-01
 
 ### Added
