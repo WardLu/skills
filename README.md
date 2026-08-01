@@ -2,7 +2,7 @@
 
 # WardLu Skills
 
-Focused, versioned, open-source skills for Codex and agent workflows.
+Focused, versioned, open-source skills for agent workflows.
 
 [![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
@@ -15,9 +15,9 @@ Focused, versioned, open-source skills for Codex and agent workflows.
 
 ## What this repository is
 
-This repository is a collection of self-contained Codex skills. Each skill lives in its own kebab-case directory and includes its instructions, scripts, tests, documentation, license, and version metadata.
+This repository is a collection of self-contained skills for AI agents and developer workflows. Each skill lives in its own kebab-case directory and includes its instructions, scripts, tests, documentation, license, and version metadata. Individual skills may target one agent or work across several agents; their compatibility is documented in each skill's README and `SKILL.md`.
 
-The first skill in the collection helps recover an old Codex Desktop conversation after a provider switch, import, or fork:
+The first skill in the collection is Codex-specific: it helps recover an old Codex Desktop conversation after a provider switch, import, or fork.
 
 | Skill | Purpose | Version | Documentation |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ The first skill in the collection helps recover an old Codex Desktop conversatio
 
 ### Recommended: `npx skills`
 
-Install one skill globally for Codex:
+Install a skill globally for a supported agent. The example below installs the current Codex-specific skill:
 
 ~~~bash
 npx skills add WardLu/skills --skill codex-cross-provider-session-repair --global --agent codex --yes
@@ -41,9 +41,9 @@ npx skills update codex-cross-provider-session-repair
 npx skills remove codex-cross-provider-session-repair
 ~~~
 
-To install the full collection, omit `--skill`. To target another supported agent, replace `--agent codex` with that agent name. This repository must be merged to `main` before the `WardLu/skills` command can resolve the new skill.
+To install the full collection, omit `--skill`. For another skill, replace the skill name; for another supported agent, replace `--agent codex` with that agent name. This repository must be merged to `main` before the `WardLu/skills` command can resolve the new skill.
 
-### Manual installation
+### Manual installation for the current Codex skill
 
 Windows PowerShell:
 
@@ -61,9 +61,11 @@ cd skills/codex-cross-provider-session-repair
 ./scripts/install.sh "$HOME/.codex/skills"
 ~~~
 
-Restart Codex after installing or upgrading so the new skill metadata is loaded.
+Restart the target agent after installing or upgrading so the new skill metadata is loaded.
 
-## Platform support
+## Current skill: platform support
+
+The current session-repair skill targets Codex Desktop and supports:
 
 | Platform | Codex home fallback | Installer | Runtime |
 | --- | --- | --- | --- |
@@ -71,7 +73,7 @@ Restart Codex after installing or upgrading so the new skill metadata is loaded.
 | macOS | `~/.codex` | `scripts/install.sh` | Python 3.9+ standard library |
 | Linux | `~/.codex` | `scripts/install.sh` | Python 3.9+ standard library |
 
-Set `CODEX_HOME` when Codex uses a non-default home. The repair scripts do not require third-party Python packages.
+Set `CODEX_HOME` when Codex uses a non-default home. The repair scripts do not require third-party Python packages. Future skills may document a different compatibility matrix.
 
 ## Safety-first workflow
 
@@ -121,6 +123,6 @@ See the contribution rules in [`codex-cross-provider-session-repair/CONTRIBUTING
 
 ## Security and license
 
-Do not commit real Codex homes, session logs, backups, tokens, or API keys. Read [`SECURITY.md`](codex-cross-provider-session-repair/SECURITY.md) before filing a bug with diagnostic data.
+Do not commit real user data, session logs, backups, tokens, or API keys. For the current Codex-specific skill, read [`SECURITY.md`](codex-cross-provider-session-repair/SECURITY.md) before filing a bug with diagnostic data.
 
 This collection and its skills are released under the [MIT License](LICENSE).
