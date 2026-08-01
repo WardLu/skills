@@ -1,0 +1,410 @@
+# Instincts generated from https://github.com/WardLu/skills
+# Generated: 2026-08-01T06:52:27.555Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: skills-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/WardLu/skills
+---
+
+# Skills Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: docs, feat
+
+## Evidence
+
+- 5 commits analyzed
+- Detected conventional commit pattern
+- Examples: feat: add Codex cross-provider session repair skill, docs: add bilingual install and cross-platform guidance
+
+---
+id: skills-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/WardLu/skills
+---
+
+# Skills Commit Length
+
+## Action
+
+Keep commit messages concise (~44 characters)
+
+## Evidence
+
+- Average commit message length: 44 chars
+- Based on 5 commits
+
+---
+id: skills-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/WardLu/skills
+---
+
+# Skills Naming Files
+
+## Action
+
+Use PascalCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: PascalCase
+
+---
+id: skills-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/WardLu/skills
+---
+
+# Skills Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: skills-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/WardLu/skills
+---
+
+# Skills Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: skills-workflow-update-documentation-files
+trigger: "when doing update documentation files"
+confidence: 0.65
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/WardLu/skills
+---
+
+# Skills Workflow Update Documentation Files
+
+## Action
+
+Follow the update-documentation-files workflow:
+1. Edit or add content to README.md at the root or within a skill directory
+2. Optionally update or add language-specific README files (e.g., README.zh-CN.md)
+3. Update CHANGELOG.md and/or SKILL.md as needed
+4. Commit changes with a docs-related message
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~3x per month
+- Files: README.md, codex-cross-provider-session-repair/README.md, codex-cross-provider-session-repair/README.zh-CN.md
+
+---
+id: skills-workflow-add-or-enhance-skill-package
+trigger: "when doing add or enhance skill package"
+confidence: 0.6
+domain: workflow
+source: repo-analysis
+source_repo: https://github.com/WardLu/skills
+---
+
+# Skills Workflow Add Or Enhance Skill Package
+
+## Action
+
+Follow the add-or-enhance-skill-package workflow:
+1. Create or update the skill directory with necessary files (README, SKILL.md, scripts, tests, etc.)
+2. Add or update scripts (e.g., install.sh, package.py, repair.py)
+3. Update or add tests in the tests/ subdirectory
+4. Update documentation files within the skill (README.md, CHANGELOG.md, SKILL.md, etc.)
+5. Commit all changes together
+
+## Evidence
+
+- Workflow detected from commit patterns
+- Frequency: ~2x per month
+- Files: codex-cross-provider-session-repair/README.md, codex-cross-provider-session-repair/SKILL.md, codex-cross-provider-session-repair/CHANGELOG.md
+
+---
+id: skills-instinct-file-naming
+trigger: "When creating or renaming a Python file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct File Naming
+
+## Action
+
+Use PascalCase for file names
+
+## Evidence
+
+- Pattern in namingConventions.files: PascalCase
+
+---
+id: skills-instinct-function-naming
+trigger: "When defining a function in Python"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Function Naming
+
+## Action
+
+Use camelCase for function names
+
+## Evidence
+
+- Pattern in namingConventions.functions: camelCase
+
+---
+id: skills-instinct-class-naming
+trigger: "When defining a class in Python"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Class Naming
+
+## Action
+
+Use PascalCase for class names
+
+## Evidence
+
+- Pattern in namingConventions.classes: PascalCase
+
+---
+id: skills-instinct-constant-naming
+trigger: "When defining a constant in Python"
+confidence: 0.9
+domain: code-style
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Constant Naming
+
+## Action
+
+Use SCREAMING_SNAKE_CASE for constant names
+
+## Evidence
+
+- Pattern in namingConventions.constants: SCREAMING_SNAKE_CASE
+
+---
+id: skills-instinct-relative-imports
+trigger: "When importing modules within the package"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Relative Imports
+
+## Action
+
+Use relative import statements
+
+## Evidence
+
+- Pattern in importStyle: relative
+
+---
+id: skills-instinct-named-exports
+trigger: "When exporting functions, classes, or variables from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Named Exports
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle: named
+
+---
+id: skills-instinct-test-location
+trigger: "When adding tests for a skill"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Test Location
+
+## Action
+
+Place test files in a tests/ subdirectory within the skill directory
+
+## Evidence
+
+- Pattern in architecture.folderStructure.testLocation: mixed
+- Example: codex-cross-provider-session-repair/tests/test_repair.py
+
+---
+id: skills-instinct-test-naming
+trigger: "When naming a test file"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Test Naming
+
+## Action
+
+Use the pattern test_<feature>.py (e.g., test_repair.py)
+
+## Evidence
+
+- Example: codex-cross-provider-session-repair/tests/test_repair.py
+
+---
+id: skills-instinct-conventional-commits
+trigger: "When writing a commit message"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Conventional Commits
+
+## Action
+
+Use the conventional commit format: <type>: <description> (e.g., feat: add new skill)
+
+## Evidence
+
+- Pattern in commits.type: conventional
+- Examples: 'feat: add Codex cross-provider session repair skill', 'docs: clarify collection scope in changelog'
+
+---
+id: skills-instinct-commit-prefixes
+trigger: "When committing documentation or feature changes"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Commit Prefixes
+
+## Action
+
+Use 'docs:' for documentation and 'feat:' for new features in commit messages
+
+## Evidence
+
+- Pattern in commits.prefixes: ['docs', 'feat']
+- Examples: 'docs: clarify skill collection scope', 'feat: add Codex cross-provider session repair skill'
+
+---
+id: skills-instinct-commit-length
+trigger: "When writing a commit message"
+confidence: 0.7
+domain: git
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Commit Length
+
+## Action
+
+Keep the commit message concise, around 44 characters on average
+
+## Evidence
+
+- Pattern in commits.averageLength: 44
+
+---
+id: skills-instinct-update-documentation
+trigger: "When someone wants to improve, clarify, or add documentation for the repository or a skill"
+confidence: 0.95
+domain: workflow
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Update Documentation
+
+## Action
+
+Edit or add content to README.md, optionally update language-specific README files, update CHANGELOG.md and/or SKILL.md as needed, and commit changes with a docs-related message
+
+## Evidence
+
+- Workflow: update-documentation-files
+- Example commits: 'docs: add bilingual install and cross-platform guidance'
+
+---
+id: skills-instinct-add-or-enhance-skill
+trigger: "When someone wants to introduce a new skill or make significant updates to an existing skill's implementation and documentation"
+confidence: 0.9
+domain: workflow
+source: repo-analysis
+source_repo: WardLu/skills
+---
+
+# Skills Instinct Add Or Enhance Skill
+
+## Action
+
+Create or update the skill directory with necessary files (README, SKILL.md, scripts, tests, etc.), add or update scripts, update or add tests, update documentation files, and commit all changes together
+
+## Evidence
+
+- Workflow: add-or-enhance-skill-package
+- Example commits: 'feat: add Codex cross-provider session repair skill'
+
