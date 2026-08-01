@@ -2,6 +2,8 @@
 
 `codex-cross-provider-session-repair` is a small, backup-first Codex Skill for recovering an old Codex Desktop conversation after a provider switch, import, or fork.
 
+[简体中文](README.zh-CN.md) · [Install](#install) · [Usage](#usage) · [Development](#development) · [Versioning and upgrades](#versioning-and-upgrades) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)
+
 It addresses two failure modes that look similar in the UI:
 
 1. the saved session or its root `state_5.sqlite` thread row still points at an unavailable provider; and
@@ -10,6 +12,34 @@ It addresses two failure modes that look similar in the UI:
 The repair is session-scoped. It never performs a global provider replacement or deletes the Codex home.
 
 ## Install
+
+### Recommended: `npx skills`
+
+After this repository is merged to `main`, install only this skill globally for Codex:
+
+```bash
+npx skills add WardLu/skills --skill codex-cross-provider-session-repair --global --agent codex --yes
+```
+
+The same command works on Windows, macOS, and Linux. It requires Node.js/npm (for `npx`). To install the whole collection, omit `--skill`; to target another supported agent, replace `--agent codex` with that agent name.
+
+Useful lifecycle commands:
+
+```bash
+npx skills list
+npx skills update codex-cross-provider-session-repair
+npx skills remove codex-cross-provider-session-repair
+```
+
+To install directly from the skill directory instead of selecting it from the collection:
+
+```bash
+npx skills add https://github.com/WardLu/skills/tree/main/codex-cross-provider-session-repair --global --agent codex --yes
+```
+
+The `skills` CLI installs the `SKILL.md` bundle for the selected agent; the bundled Python repair script remains available inside the installed skill directory.
+
+### Manual installation
 
 Clone the skills collection and run the installer from this directory:
 
@@ -32,6 +62,16 @@ git clone https://github.com/WardLu/skills.git
 cd skills/codex-cross-provider-session-repair
 ./scripts/install.sh
 ```
+
+The platform matrix is:
+
+| Platform | Codex home discovery | Installer |
+| --- | --- | --- |
+| Windows | `CODEX_HOME`, then `%USERPROFILE%\\.codex` | `scripts/install.ps1` |
+| macOS | `CODEX_HOME`, then `~/.codex` | `scripts/install.sh` |
+| Linux | `CODEX_HOME`, then `~/.codex` | `scripts/install.sh` |
+
+The repair logic uses Python 3.9+ standard-library modules only (`json`, `sqlite3`, `pathlib`, and `shutil`), so no platform-specific Python packages are required.
 
 Restart the client after installing or upgrading a skill so its metadata is reloaded.
 

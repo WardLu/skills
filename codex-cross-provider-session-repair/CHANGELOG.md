@@ -2,6 +2,15 @@
 
 All notable changes to this skill are documented here.
 
+## [0.2.0] - 2026-08-01
+
+### Added
+
+- Bilingual English and Simplified Chinese README documentation with quick navigation links.
+- `npx skills` installation, listing, update, and removal instructions.
+- Explicit Windows, macOS, and Linux support matrix and platform installer guidance.
+- Executable POSIX helper scripts for macOS/Linux installations.
+
 ## [0.1.0] - 2026-08-01
 
 ### Added

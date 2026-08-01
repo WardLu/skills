@@ -4,8 +4,8 @@ description: Repair Codex Desktop sessions that fail after switching model provi
 license: MIT
 compatibility: Requires Python 3.9+ with the standard library; Windows, macOS, and Linux Codex homes are supported. Stop Codex Desktop before applying file or database changes.
 metadata:
-  version: "0.1.0"
-  repository: "https://github.com/WardLu/codex-cross-provider-session-repair"
+  version: "0.2.0"
+  repository: "https://github.com/WardLu/skills/tree/main/codex-cross-provider-session-repair"
   maintainer: "Ward Lu"
 ---
 
@@ -113,11 +113,16 @@ If compaction succeeds and the error changes to authentication, transport, or pr
 
 ## Bundled tools
 
+Install this skill with `npx skills add WardLu/skills --skill codex-cross-provider-session-repair --global --agent codex --yes`, or use the platform installer documented in `README.md`.
+
 - `scripts/repair.py` — deterministic, backup-first diagnosis and target-scoped repair.
 - `tests/test_repair.py` — offline tests using temporary fake Codex homes and SQLite databases.
 - `README.md` — installation, upgrade, release, and troubleshooting guide.
 
+## Documentation
+
+The English installation and maintenance guide is `README.md`; Simplified Chinese users can use the synchronized `README.zh-CN.md` guide.
+
 ## Report format
 
 Give the user a concise result with: root cause, exact target session, files changed, backup paths, verification counts, whether an independent smoke test reached `Context compacted`, and the one required restart step. Never include credentials or full JSONL lines.
-
