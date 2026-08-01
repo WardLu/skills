@@ -1,5 +1,7 @@
 # Codex Cross-Provider Session Repair
 
+[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![Version 0.2.0](https://img.shields.io/badge/version-0.2.0-2563eb.svg)](VERSION) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 `codex-cross-provider-session-repair` is a small, backup-first Codex Skill for recovering an old Codex Desktop conversation after a provider switch, import, or fork.
 
 [简体中文](README.zh-CN.md) · [Install](#install) · [Usage](#usage) · [Development](#development) · [Versioning and upgrades](#versioning-and-upgrades) · [Security](SECURITY.md) · [Changelog](CHANGELOG.md)

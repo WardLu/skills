@@ -1,5 +1,7 @@
 # Codex 跨供应商旧会话修复
 
+[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.2.0](https://img.shields.io/badge/version-0.2.0-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 `codex-cross-provider-session-repair` 是一个以备份优先为原则的 Codex Skill，用于修复切换模型供应商、导入或分叉旧会话后无法继续的问题。
 
 [English](README.md) · [快速安装](#推荐使用-npx-skills) · [使用方法](#使用方法) · [开发测试](#开发测试) · [版本与升级](#版本与升级) · [安全说明](SECURITY.md) · [变更记录](CHANGELOG.md)
