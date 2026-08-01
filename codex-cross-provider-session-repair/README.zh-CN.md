@@ -4,7 +4,7 @@
 
 `codex-cross-provider-session-repair` 是一个以备份优先为原则的 Codex Skill，用于修复切换模型供应商、导入或分叉旧会话后无法继续的问题。
 
-[English](README.md) · [快速安装](#推荐使用-npx-skills) · [使用方法](#使用方法) · [开发测试](#开发测试) · [版本与升级](#版本与升级) · [安全说明](SECURITY.md) · [变更记录](CHANGELOG.md)
+[English](README.md) · [简体中文](README.zh-CN.md) · [快速安装](#推荐使用-npx-skills) · [使用方法](#使用方法) · [开发测试](#开发测试) · [版本与升级](#版本与升级) · [安全说明](SECURITY.md) · [变更记录](CHANGELOG.md)
 
 它处理两类在界面上很相似的故障：
 

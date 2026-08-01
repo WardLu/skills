@@ -4,10 +4,15 @@ All notable changes to this skill are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- Added a Simplified Chinese README for the repository root.
+
 ### Changed
 
 - Clarified that the repository is a general-purpose agent skills collection; the current session-repair skill is specifically for Codex Desktop.
 - Simplified the root README language navigation label.
+- Added paired `English` and `简体中文` links to both language versions of the root and current-skill READMEs.
 
 ## [0.2.0] - 2026-08-01
 
