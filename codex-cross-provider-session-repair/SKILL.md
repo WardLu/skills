@@ -4,7 +4,7 @@ description: Repair Codex Desktop sessions that fail after switching model provi
 license: MIT
 compatibility: Requires Python 3.9+ with the standard library; Windows, macOS, and Linux Codex homes are supported. Stop Codex Desktop before applying file or database changes.
 metadata:
-  version: "0.2.0"
+  version: "0.3.0"
   repository: "https://github.com/WardLu/skills/tree/main/codex-cross-provider-session-repair"
   maintainer: "Ward Lu"
 ---
@@ -12,6 +12,47 @@ metadata:
 # Codex cross-provider session repair
 
 Use this skill for a damaged or incompatible *saved Codex session*, not for ordinary model/API troubleshooting. The goal is to make one existing conversation resumable while keeping its user-visible history and avoiding broad cache deletion.
+
+## User interaction flow (end-to-end)
+
+The user does not need to memorise CLI flags. A typical session looks like this:
+
+1. **User opens a *new* Codex conversation** (the broken one cannot be used) and says something like: "会话 019fc2cb-5370-7d32-899c-89310a4e370a 打不开了，切换模型后报错" or "用 codex-cross-provider-session-repair 修复会话 <UUID>".
+2. **Agent runs the dry-run diagnostic** (see Workflow below). The report shows which failure mode applies and what will be changed.
+3. **Agent explains the root cause in one sentence** and asks the user to approve the write (the script writes inside `~/.codex`, which requires elevated permissions in sandboxed mode).
+4. **Agent runs `--apply`** with the appropriate flags. A timestamped backup is created automatically.
+5. **Agent tells the user to fully quit and relaunch Codex Desktop** (Cmd+Q on macOS), then open the repaired session and send a short test message.
+
+### Finding the session ID
+
+If the user does not know the UUID, help them find it:
+
+- **From the Codex App UI**: right-click the broken conversation in the sidebar; some versions show the ID in the context menu or in the URL bar.
+- **From the filesystem**: list recent rollout files:
+
+  ```bash
+  ls -lt ~/.codex/sessions/*/*/rollout-*.jsonl | head -10
+  ```
+
+  The UUID is the last segment of the filename (e.g. `rollout-2026-08-02T22-05-32-<UUID>.jsonl`).
+- **From the database**: query the threads table for recent sessions:
+
+  ```python
+  import sqlite3
+  conn = sqlite3.connect("~/.codex/state_5.sqlite".replace("~", str(__import__("pathlib").Path.home())))
+  for row in conn.execute("SELECT id, title, model, updated_at FROM threads ORDER BY updated_at DESC LIMIT 10"):
+      print(row)
+  ```
+
+### One-shot repair command
+
+When the user provides a session ID and the dry-run confirms the failure mode, the agent can combine all needed flags in a single `--apply` invocation:
+
+```text
+python3 <skill_dir>/scripts/repair.py --session-id <UUID> --fix-provider --provider <current> --fix-model-turn --remove-reasoning stale --apply
+```
+
+The script creates a backup before writing, so it is safe to combine flags.
 
 ## What this skill fixes
 
@@ -25,6 +66,8 @@ Codex stores continuation state in several layers:
 After a provider switch, an old thread can retain a provider in layers 2 or 3 even when the global config is correct. Separately, an imported/forked long thread can contain `response_item` reasoning records that were sent with `store=false` and never persisted by the service. Remote compaction then fails with HTTP 404: `Item with id 'rs_...' not found`.
 
 The second failure is not fixed by changing the provider, deleting `config.toml`, or clearing browser cache. If multiple different `rs_...` IDs fail in succession, remove the non-user-visible local reasoning items in one pass; deleting one ID at a time only exposes the next stale reference.
+
+A third failure occurs when switching to a Gemini-backed model (e.g. `gemini-3.6-flash-high` via a proxy such as CC Switch). Gemini's API rejects requests whose message history ends with a `model`/assistant turn: `Requests ending with a model turn are not supported.` (HTTP 400 INVALID_ARGUMENT). Codex triggers pre-sampling context compaction (`CompHashChanged`) on model switch; if the effective history after `thread_rolled_back` events ends with an assistant message, the compaction request fails and the turn cannot start. This is systemic—every session switched to Gemini that needs compaction will hit it until the JSONL is repaired.
 
 ## Safety contract
 
@@ -93,6 +136,15 @@ python scripts/repair.py --session-id <UUID> --codex-home <CODEX_HOME> \
 
 Provider repair and reasoning cleanup can be combined in one invocation after the dry-run report confirms both conditions.
 
+**Gemini model-turn compaction.** If the dry-run report shows `Model-turn compaction: RISK` or `logged-error`, the effective history ends with an assistant message and Gemini compaction will fail. Use:
+
+```text
+python scripts/repair.py --session-id <UUID> --codex-home <CODEX_HOME> \
+  --fix-model-turn --apply
+```
+
+This removes `thread_rolled_back` event records so that previously rolled-back turns (which typically contain the trailing user message) become effective again. If the last effective message is still `assistant` after rollback removal, a dummy `user` message is appended to satisfy Gemini's requirement. The repair can be combined with `--fix-provider` and `--remove-reasoning` in the same invocation.
+
 ### 4. Verify the file and database
 
 Run the script again without `--apply`, or use its `--verify` output. Confirm:
@@ -101,7 +153,8 @@ Run the script again without `--apply`, or use its `--verify` output. Confirm:
 - zero stale IDs remain as local reasoning items;
 - provider values agree with the chosen current provider when provider repair was requested;
 - the backup path is reported; and
-- no unrelated session was changed.
+- no unrelated session was changed;
+- the `Model-turn compaction` line shows `ok` (not `RISK`) and `last_role=user` when `--fix-model-turn` was applied.
 
 The raw `rs_...` text may still occur inside a historical `task_complete` error event. That text is not a `response_item` submitted for compaction and does not need to be deleted.
 

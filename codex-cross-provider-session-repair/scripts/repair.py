@@ -21,6 +21,7 @@ from typing import Any, Iterable
 
 STALE_ITEM_RE = re.compile(r"Item with id ['\"](rs_[^'\"]+)['\"] not found")
 PROVIDER_RE = re.compile(r"^\s*model_provider\s*=\s*['\"]([^'\"]+)['\"]", re.MULTILINE)
+MODEL_TURN_ERROR_RE = re.compile(r"Requests ending with a model turn are not supported", re.IGNORECASE)
 
 
 def resolve_codex_home(value: str | None) -> Path:
@@ -140,6 +141,98 @@ def read_stale_ids(database: Path, session_id: str) -> list[str]:
             pass
 
 
+def read_model_turn_error(database: Path, session_id: str) -> bool:
+    """Check if logs contain Gemini model-turn-ending compaction errors."""
+    if not database.is_file():
+        return False
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(database)
+        connection.execute("PRAGMA query_only = ON")
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if "logs" not in tables:
+            return False
+        rows = connection.execute(
+            "SELECT feedback_log_body FROM logs WHERE thread_id = ? AND level IN ('ERROR', 'WARN')",
+            (session_id,),
+        ).fetchall()
+        for (body,) in rows:
+            if body and MODEL_TURN_ERROR_RE.search(body):
+                return True
+        return False
+    except sqlite3.Error:
+        return False
+    finally:
+        try:
+            if connection is not None:
+                connection.close()
+        except Exception:
+            pass
+
+
+def detect_compaction_model_turn(records: list[dict[str, Any] | None]) -> dict[str, Any]:
+    """Detect if the effective history ends with a model turn.
+
+    Walks the JSONL records simulating Codex turn management: turns are
+    delimited by task_started/task_complete events, and thread_rolled_back
+    events pop completed turns.  After applying rollbacks, the last effective
+    response_item message role is checked.  If it is ``assistant`` or
+    ``model``, a Gemini compaction request would fail with HTTP 400
+    "Requests ending with a model turn are not supported."
+    """
+    turns: list[list[tuple[int, str]]] = []
+    current_turn: list[tuple[int, str]] = []
+
+    for i, record in enumerate(records):
+        if not record:
+            continue
+        rtype = record.get("type", "")
+        payload = record.get("payload", {})
+        ptype = payload.get("type", "")
+
+        if rtype == "response_item" and ptype == "message":
+            role = payload.get("role", "")
+            current_turn.append((i, role))
+        elif rtype == "event_msg":
+            if ptype == "task_started":
+                current_turn = []
+            elif ptype == "task_complete":
+                if current_turn:
+                    turns.append(current_turn)
+                current_turn = []
+            elif ptype == "thread_rolled_back":
+                num = payload.get("num_turns", 1)
+                for _ in range(num):
+                    if turns:
+                        turns.pop()
+                current_turn = []
+
+    # Effective history = all completed turns after rollbacks.
+    # The current (incomplete) turn's messages belong to the new turn and
+    # are NOT part of the compaction input.
+    effective: list[tuple[int, str]] = []
+    for turn in turns:
+        effective.extend(turn)
+
+    if effective:
+        last_idx, last_role = effective[-1]
+        return {
+            "model_turn_risk": last_role in ("assistant", "model"),
+            "last_effective_role": last_role,
+            "last_effective_line": last_idx + 1,
+            "effective_message_count": len(effective),
+            "effective_turn_count": len(turns),
+        }
+
+    return {
+        "model_turn_risk": False,
+        "last_effective_role": None,
+        "last_effective_line": None,
+        "effective_message_count": 0,
+        "effective_turn_count": len(turns),
+    }
+
+
 def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
     rollout = find_rollout(codex_home, session_id)
     lines, records, parse_errors = read_jsonl(rollout)
@@ -160,9 +253,12 @@ def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
                 reasoning_ids.append(payload["id"])
 
     root_db = codex_home / "state_5.sqlite"
-    stale_ids = read_stale_ids(codex_home / "logs_2.sqlite", session_id)
+    logs_db = codex_home / "logs_2.sqlite"
+    stale_ids = read_stale_ids(logs_db, session_id)
     reasoning_set = set(reasoning_ids)
     target_meta = [item for item in session_meta if item.get("id") == session_id]
+    model_turn_info = detect_compaction_model_turn(records)
+    model_turn_info["logged_error"] = read_model_turn_error(logs_db, session_id)
     return {
         "session_id": session_id,
         "codex_home": str(codex_home),
@@ -178,6 +274,7 @@ def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
         "reasoning_item_count": len(reasoning_ids),
         "reasoning_item_ids": reasoning_ids,
         "child_database_present": (codex_home / "sqlite" / "state_5.sqlite").is_file(),
+        "model_turn": model_turn_info,
     }
 
 
@@ -196,17 +293,51 @@ def rewrite_session(
     provider: str | None,
     fix_provider: bool,
     remove_reasoning: str,
-) -> tuple[Path | None, int, int]:
+    fix_model_turn: bool = False,
+) -> tuple[Path | None, int, int, int]:
+    """Rewrite session JSONL.
+
+    Returns ``(backup_path, removed_reasoning, provider_updates, model_turn_inserts)``.
+
+    When *fix_model_turn* is set the function also strips ``thread_rolled_back``
+    events so that previously rolled-back turns become effective again.  If the
+    last response_item message is still an assistant turn after that, a dummy
+    user message is appended to satisfy Gemini's requirement that requests must
+    not end with a model turn.
+    """
     path = Path(report["rollout_path"])
     lines, records, parse_errors = read_jsonl(path)
     if parse_errors:
         raise ValueError(f"refusing to rewrite malformed JSONL; lines: {parse_errors[:10]}")
 
     stale = set(report["stale_ids_present_as_reasoning"])
-    backup = backup_file(path, "session-repair")
+    needs_write = remove_reasoning != "none" or fix_provider or fix_model_turn
+    backup = backup_file(path, "session-repair") if needs_write else None
     output: list[str] = []
     removed = 0
     provider_updates = 0
+    model_turn_inserts = 0
+    rollbacks_removed = 0
+
+    # When fixing model-turn, find the last response_item message in the
+    # entire JSONL (thread_rolled_back events will be removed, so all turns
+    # become effective).
+    last_message_idx: int | None = None
+    last_message_role: str | None = None
+    if fix_model_turn:
+        mt = report.get("model_turn", {})
+        if mt.get("model_turn_risk") or mt.get("logged_error"):
+            for i in range(len(records) - 1, -1, -1):
+                record = records[i]
+                if not record:
+                    continue
+                if record.get("type") == "response_item":
+                    payload = record.get("payload", {})
+                    if payload.get("type") == "message":
+                        last_message_idx = i
+                        last_message_role = payload.get("role", "")
+                        break
+
     for original, record in zip(lines, records):
         assert record is not None
         payload = record.get("payload") or {}
@@ -215,6 +346,14 @@ def rewrite_session(
             if remove_reasoning == "all" or (remove_reasoning == "stale" and item_id in stale):
                 removed += 1
                 continue
+        # Strip thread_rolled_back events so rolled-back turns become effective.
+        if (
+            fix_model_turn
+            and record.get("type") == "event_msg"
+            and payload.get("type") == "thread_rolled_back"
+        ):
+            rollbacks_removed += 1
+            continue
         if (
             fix_provider
             and provider
@@ -229,6 +368,37 @@ def rewrite_session(
             continue
         output.append(original)
 
+        # Insert a user message right after the last assistant message so
+        # that compaction sent to Gemini does not end with a model turn.
+        if (
+            fix_model_turn
+            and last_message_idx is not None
+            and last_message_role == "assistant"
+            and record is records[last_message_idx]
+        ):
+            meta = payload.get("internal_chat_message_metadata_passthrough") or {}
+            repair_msg = {
+                "timestamp": record.get("timestamp", ""),
+                "type": "response_item",
+                "payload": {
+                    "type": "message",
+                    "id": f"msg_repair_model_turn_{model_turn_inserts:04d}",
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "input_text",
+                            "text": "(session repair: appended user turn to prevent Gemini compaction failure on model-turn-ending)",
+                        }
+                    ],
+                    "internal_chat_message_metadata_passthrough": meta,
+                },
+            }
+            output.append(json.dumps(repair_msg, ensure_ascii=False, separators=(",", ":")) + "\n")
+            model_turn_inserts += 1
+
+    if not needs_write:
+        return None, 0, 0, 0
+
     temporary = path.with_name(f".{path.name}.repair-{os.getpid()}.tmp")
     with temporary.open("w", encoding="utf-8", newline="") as handle:
         handle.write("".join(output))
@@ -240,7 +410,9 @@ def rewrite_session(
         except OSError:
             pass
         raise
-    return backup, removed, provider_updates
+    if rollbacks_removed:
+        print(f"Removed {rollbacks_removed} thread_rolled_back event(s) to restore effective turns.")
+    return backup, removed, provider_updates, model_turn_inserts
 
 
 def update_thread_provider(codex_home: Path, session_id: str, provider: str) -> Path | None:
@@ -288,6 +460,17 @@ def print_report(report: dict[str, Any], as_json: bool) -> None:
     print(f"Stale IDs present as local reasoning: {safe['stale_ids_present_as_reasoning']}")
     print(f"Local reasoning records: {safe['reasoning_item_count']}")
     print(f"Child sqlite database present: {safe['child_database_present']}")
+    mt = safe.get("model_turn", {})
+    risk = mt.get("model_turn_risk", False)
+    logged = mt.get("logged_error", False)
+    flag = "RISK" if risk else "ok"
+    if logged:
+        flag += " + logged-error"
+    print(
+        f"Model-turn compaction: {flag} | last_role={mt.get('last_effective_role')} "
+        f"line={mt.get('last_effective_line')} msgs={mt.get('effective_message_count')} "
+        f"turns={mt.get('effective_turn_count')}"
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -301,6 +484,12 @@ def build_parser() -> argparse.ArgumentParser:
         choices=("none", "stale", "all"),
         default="none",
         help="Remove exact stale reasoning IDs, or all internal reasoning records",
+    )
+    parser.add_argument(
+        "--fix-model-turn",
+        action="store_true",
+        help="Append a user message after the last assistant message so Gemini "
+        "compaction does not fail with 'Requests ending with a model turn are not supported'",
     )
     parser.add_argument("--apply", action="store_true", help="Write the requested repair; default is dry-run")
     parser.add_argument("--json", action="store_true", help="Print the diagnostic report as JSON")
@@ -322,17 +511,25 @@ def main(argv: Iterable[str] | None = None) -> int:
             raise ValueError("--fix-provider requires --provider")
         if args.remove_reasoning == "stale" and not report["stale_ids_present_as_reasoning"]:
             print("No stale local reasoning IDs matched; no session rewrite needed.")
+        mt = report.get("model_turn", {})
+        if args.fix_model_turn and not (mt.get("model_turn_risk") or mt.get("logged_error")):
+            print("No model-turn risk detected; --fix-model-turn has nothing to do.")
         session_backup = None
         removed = 0
         provider_updates = 0
-        if args.remove_reasoning != "none" or args.fix_provider:
-            session_backup, removed, provider_updates = rewrite_session(
-                report, args.provider, args.fix_provider, args.remove_reasoning
+        model_turn_inserts = 0
+        if args.remove_reasoning != "none" or args.fix_provider or args.fix_model_turn:
+            session_backup, removed, provider_updates, model_turn_inserts = rewrite_session(
+                report, args.provider, args.fix_provider, args.remove_reasoning, args.fix_model_turn
             )
         db_backup = None
         if args.fix_provider and args.provider:
             db_backup = update_thread_provider(codex_home, args.session_id, args.provider)
-        print(f"Applied: removed_reasoning={removed}, session_meta_provider_updates={provider_updates}")
+        print(
+            f"Applied: removed_reasoning={removed}, "
+            f"session_meta_provider_updates={provider_updates}, "
+            f"model_turn_inserts={model_turn_inserts}"
+        )
         if session_backup:
             print(f"Session backup: {session_backup}")
         if db_backup:
