@@ -2,6 +2,22 @@
 
 All notable changes to this skill are documented here.
 
+## [0.3.0] - 2026-08-03
+
+### Added
+
+- Gemini model-turn compaction detection and repair: `--fix-model-turn` removes
+  `thread_rolled_back` events that hide the trailing user turn and appends a
+  dummy user message when the effective history still ends with an assistant
+  turn, fixing HTTP 400 "Requests ending with a model turn are not supported".
+- End-to-end user interaction flow documentation in `SKILL.md` so users only
+  need to provide a session ID in a new Codex conversation.
+
+### Changed
+
+- Dry-run report now includes a `Model-turn compaction` line with risk status,
+  last effective role/line, and effective message/turn counts.
+
 ## [Unreleased]
 
 ### Added

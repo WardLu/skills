@@ -10,10 +10,21 @@ import repair  # noqa: E402
 
 
 SESSION_ID = "019fb8f5-5fcc-74c0-8341-61f83f2126ce"
+SESSION_ID_MT = "019fc2cb-5370-7d32-899c-89310a4e370a"
 
 
 def event(kind, payload):
     return json.dumps({"timestamp": "2026-08-01T00:00:00Z", "type": kind, "payload": payload}, separators=(",", ":")) + "\n"
+
+
+def msg(role, text, turn_id="turn-1"):
+    return event("response_item", {
+        "type": "message",
+        "id": f"msg-{role}-{turn_id}",
+        "role": role,
+        "content": [{"type": "input_text" if role != "assistant" else "output_text", "text": text}],
+        "internal_chat_message_metadata_passthrough": {"turn_id": turn_id},
+    })
 
 
 class RepairTests(unittest.TestCase):
@@ -44,9 +55,9 @@ class RepairTests(unittest.TestCase):
         state.close()
 
         logs = sqlite3.connect(self.home / "logs_2.sqlite")
-        logs.execute("CREATE TABLE logs (id INTEGER PRIMARY KEY, thread_id TEXT, feedback_log_body TEXT)")
-        logs.execute("INSERT INTO logs(thread_id, feedback_log_body) VALUES (?, ?)", (SESSION_ID, "Item with id 'rs_stale_1' not found"))
-        logs.execute("INSERT INTO logs(thread_id, feedback_log_body) VALUES (?, ?)", (SESSION_ID, "Item with id 'rs_stale_2' not found"))
+        logs.execute("CREATE TABLE logs (id INTEGER PRIMARY KEY, thread_id TEXT, level TEXT, feedback_log_body TEXT)")
+        logs.execute("INSERT INTO logs(thread_id, level, feedback_log_body) VALUES (?, ?, ?)", (SESSION_ID, "ERROR", "Item with id 'rs_stale_1' not found"))
+        logs.execute("INSERT INTO logs(thread_id, level, feedback_log_body) VALUES (?, ?, ?)", (SESSION_ID, "ERROR", "Item with id 'rs_stale_2' not found"))
         logs.commit()
         logs.close()
 
@@ -63,7 +74,7 @@ class RepairTests(unittest.TestCase):
 
     def test_stale_repair_preserves_visible_and_event_items(self):
         report = repair.inspect_session(self.home, SESSION_ID)
-        backup, removed, provider_updates = repair.rewrite_session(report, None, False, "stale")
+        backup, removed, provider_updates, _ = repair.rewrite_session(report, None, False, "stale")
         self.assertTrue(backup and backup.exists())
         self.assertEqual(removed, 2)
         self.assertEqual(provider_updates, 0)
@@ -75,7 +86,7 @@ class RepairTests(unittest.TestCase):
 
     def test_provider_repair_updates_only_target_layers(self):
         report = repair.inspect_session(self.home, SESSION_ID)
-        backup, removed, provider_updates = repair.rewrite_session(report, "custom", True, "none")
+        backup, removed, provider_updates, _ = repair.rewrite_session(report, "custom", True, "none")
         self.assertTrue(backup and backup.exists())
         self.assertEqual(removed, 0)
         self.assertEqual(provider_updates, 1)
@@ -91,6 +102,112 @@ class RepairTests(unittest.TestCase):
         report = repair.inspect_session(self.home, SESSION_ID)
         with self.assertRaises(ValueError):
             repair.rewrite_session(report, None, False, "all")
+
+
+class ModelTurnTests(unittest.TestCase):
+    """Tests for Gemini model-turn-ending compaction detection and repair."""
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.home = Path(self.temp.name) / ".codex"
+        self.rollout = self.home / "sessions" / "2026" / "08" / "02"
+        self.rollout.mkdir(parents=True)
+        self.session_path = self.rollout / f"rollout-test-{SESSION_ID_MT}.jsonl"
+        # Build a session where thread_rolled_back hides the last user turn,
+        # leaving an assistant message as the last effective item.
+        self.session_path.write_text(
+            "".join(
+                [
+                    event("session_meta", {"id": SESSION_ID_MT, "model_provider": "custom", "cwd": "/work"}),
+                    # Turn 1: user -> assistant
+                    event("event_msg", {"type": "task_started", "turn_id": "t1"}),
+                    msg("user", "Hello", "t1"),
+                    msg("assistant", "Hi there", "t1"),
+                    event("event_msg", {"type": "task_complete", "turn_id": "t1"}),
+                    # Turn 2: user -> assistant (this one will be rolled back)
+                    event("event_msg", {"type": "task_started", "turn_id": "t2"}),
+                    msg("user", "Continue", "t2"),
+                    msg("assistant", "Sure", "t2"),
+                    event("event_msg", {"type": "task_complete", "turn_id": "t2"}),
+                    # Rollback turn 2 — effective history now ends with assistant
+                    event("event_msg", {"type": "thread_rolled_back", "num_turns": 1}),
+                    # Turn 3: user (rolled back too)
+                    event("event_msg", {"type": "task_started", "turn_id": "t3"}),
+                    msg("user", "Try again", "t3"),
+                    event("event_msg", {"type": "task_complete", "turn_id": "t3"}),
+                    event("event_msg", {"type": "thread_rolled_back", "num_turns": 1}),
+                ]
+            ),
+            encoding="utf-8",
+        )
+        (self.home / "config.toml").write_text('model_provider = "custom"\n', encoding="utf-8")
+
+        logs = sqlite3.connect(self.home / "logs_2.sqlite")
+        logs.execute("CREATE TABLE logs (id INTEGER PRIMARY KEY, thread_id TEXT, level TEXT, feedback_log_body TEXT)")
+        logs.execute(
+            "INSERT INTO logs(thread_id, level, feedback_log_body) VALUES (?, ?, ?)",
+            (SESSION_ID_MT, "ERROR", "Requests ending with a model turn are not supported."),
+        )
+        logs.commit()
+        logs.close()
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_detects_model_turn_risk(self):
+        report = repair.inspect_session(self.home, SESSION_ID_MT)
+        mt = report["model_turn"]
+        self.assertTrue(mt["model_turn_risk"])
+        self.assertTrue(mt["logged_error"])
+        self.assertEqual(mt["last_effective_role"], "assistant")
+
+    def test_fix_model_turn_removes_rollbacks(self):
+        report = repair.inspect_session(self.home, SESSION_ID_MT)
+        backup, _, _, inserts = repair.rewrite_session(
+            report, None, False, "none", fix_model_turn=True
+        )
+        self.assertTrue(backup and backup.exists())
+        # After removing rollbacks, the last effective message should be user
+        # (from turn 3 or turn 2), so no dummy user message is needed.
+        self.assertEqual(inserts, 0)
+        # Verify rollbacks were removed
+        text = self.session_path.read_text(encoding="utf-8")
+        self.assertNotIn("thread_rolled_back", text)
+        # Verify post-repair state
+        after = repair.inspect_session(self.home, SESSION_ID_MT)
+        mt = after["model_turn"]
+        self.assertFalse(mt["model_turn_risk"])
+        self.assertEqual(mt["last_effective_role"], "user")
+
+    def test_fix_model_turn_appends_user_when_no_rollback(self):
+        """When there are no rollbacks and history ends with assistant,
+        a dummy user message must be appended."""
+        # Rewrite the session to remove rollbacks first, then add a trailing
+        # assistant message without a following user message.
+        self.session_path.write_text(
+            "".join(
+                [
+                    event("session_meta", {"id": SESSION_ID_MT, "model_provider": "custom", "cwd": "/work"}),
+                    event("event_msg", {"type": "task_started", "turn_id": "t1"}),
+                    msg("user", "Hello", "t1"),
+                    msg("assistant", "Hi there", "t1"),
+                    event("event_msg", {"type": "task_complete", "turn_id": "t1"}),
+                ]
+            ),
+            encoding="utf-8",
+        )
+        report = repair.inspect_session(self.home, SESSION_ID_MT)
+        mt = report["model_turn"]
+        self.assertTrue(mt["model_turn_risk"])
+        self.assertEqual(mt["last_effective_role"], "assistant")
+
+        backup, _, _, inserts = repair.rewrite_session(
+            report, None, False, "none", fix_model_turn=True
+        )
+        self.assertEqual(inserts, 1)
+        after = repair.inspect_session(self.home, SESSION_ID_MT)
+        self.assertFalse(after["model_turn"]["model_turn_risk"])
+        self.assertEqual(after["model_turn"]["last_effective_role"], "user")
 
 
 if __name__ == "__main__":
