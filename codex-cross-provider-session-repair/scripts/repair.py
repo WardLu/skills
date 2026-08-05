@@ -22,6 +22,11 @@ from typing import Any, Iterable
 STALE_ITEM_RE = re.compile(r"Item with id ['\"](rs_[^'\"]+)['\"] not found")
 PROVIDER_RE = re.compile(r"^\s*model_provider\s*=\s*['\"]([^'\"]+)['\"]", re.MULTILINE)
 MODEL_TURN_ERROR_RE = re.compile(r"Requests ending with a model turn are not supported", re.IGNORECASE)
+REMOTE_COMPACTION_ERROR_RE = re.compile(
+    r"remote compaction v2 expected exactly one compaction output item",
+    re.IGNORECASE,
+)
+
 
 
 def resolve_codex_home(value: str | None) -> Path:
@@ -170,6 +175,41 @@ def read_model_turn_error(database: Path, session_id: str) -> bool:
             pass
 
 
+def read_remote_compaction_error(database: Path, session_id: str) -> bool:
+    """Check if logs contain Codex remote-compaction-v2 failures.
+
+    These failures mean the current provider/model did not return the
+    ``type: "compaction"`` output item that Codex remote compaction v2
+    requires. The fix is not a session rewrite: the user should disable
+    remote compaction or switch to a provider/model that supports it.
+    """
+    if not database.is_file():
+        return False
+    connection: sqlite3.Connection | None = None
+    try:
+        connection = sqlite3.connect(database)
+        connection.execute("PRAGMA query_only = ON")
+        tables = {row[0] for row in connection.execute("SELECT name FROM sqlite_master WHERE type='table'")}
+        if "logs" not in tables:
+            return False
+        rows = connection.execute(
+            "SELECT feedback_log_body FROM logs WHERE thread_id = ? AND level IN ('ERROR', 'WARN')",
+            (session_id,),
+        ).fetchall()
+        for (body,) in rows:
+            if body and REMOTE_COMPACTION_ERROR_RE.search(body):
+                return True
+        return False
+    except sqlite3.Error:
+        return False
+    finally:
+        try:
+            if connection is not None:
+                connection.close()
+        except Exception:
+            pass
+
+
 def detect_compaction_model_turn(records: list[dict[str, Any] | None]) -> dict[str, Any]:
     """Detect if the effective history ends with a model turn.
 
@@ -233,6 +273,45 @@ def detect_compaction_model_turn(records: list[dict[str, Any] | None]) -> dict[s
     }
 
 
+def effective_last_message_after_rollback_removal(records: list[dict[str, Any] | None]) -> tuple[int, str] | None:
+    """Return the last effective response_item message after ``thread_rolled_back``
+    events are stripped, as ``(record_index, role)``, or ``None``.
+
+    This mirrors :func:`detect_compaction_model_turn` but treats every
+    ``thread_rolled_back`` event as already removed, which is what
+    :func:`rewrite_session` does when *fix_model_turn* is set.  The rewrite then
+    appends a dummy user message when that last effective message is an
+    assistant/model turn.
+    """
+    turns: list[list[tuple[int, str]]] = []
+    current_turn: list[tuple[int, str]] = []
+
+    for i, record in enumerate(records):
+        if not record:
+            continue
+        rtype = record.get("type", "")
+        payload = record.get("payload", {})
+        ptype = payload.get("type", "")
+
+        if rtype == "response_item" and ptype == "message":
+            current_turn.append((i, payload.get("role", "")))
+        elif rtype == "event_msg":
+            if ptype == "task_started":
+                current_turn = []
+            elif ptype == "task_complete":
+                if current_turn:
+                    turns.append(current_turn)
+                current_turn = []
+            # thread_rolled_back is intentionally ignored: rewrite_session strips it.
+
+    effective: list[tuple[int, str]] = []
+    for turn in turns:
+        effective.extend(turn)
+    if effective:
+        return effective[-1]
+    return None
+
+
 def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
     rollout = find_rollout(codex_home, session_id)
     lines, records, parse_errors = read_jsonl(rollout)
@@ -259,6 +338,7 @@ def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
     target_meta = [item for item in session_meta if item.get("id") == session_id]
     model_turn_info = detect_compaction_model_turn(records)
     model_turn_info["logged_error"] = read_model_turn_error(logs_db, session_id)
+    remote_compaction_error = read_remote_compaction_error(logs_db, session_id)
     return {
         "session_id": session_id,
         "codex_home": str(codex_home),
@@ -275,6 +355,10 @@ def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
         "reasoning_item_ids": reasoning_ids,
         "child_database_present": (codex_home / "sqlite" / "state_5.sqlite").is_file(),
         "model_turn": model_turn_info,
+        "remote_compaction": {
+            "logged_error": remote_compaction_error,
+            "unsupported": remote_compaction_error,
+        },
     }
 
 
@@ -319,24 +403,19 @@ def rewrite_session(
     model_turn_inserts = 0
     rollbacks_removed = 0
 
-    # When fixing model-turn, find the last response_item message in the
-    # entire JSONL (thread_rolled_back events will be removed, so all turns
-    # become effective).
+    # When fixing model-turn, find the last effective response_item message
+    # AFTER thread_rolled_back events are stripped (the rewrite does the same
+    # stripping below). Using the raw tail of the JSONL is wrong: a rolled-back
+    # or unfinished turn can leave a trailing user message while the effective
+    # history ends with an assistant turn, which would skip the dummy insert.
     last_message_idx: int | None = None
     last_message_role: str | None = None
     if fix_model_turn:
         mt = report.get("model_turn", {})
         if mt.get("model_turn_risk") or mt.get("logged_error"):
-            for i in range(len(records) - 1, -1, -1):
-                record = records[i]
-                if not record:
-                    continue
-                if record.get("type") == "response_item":
-                    payload = record.get("payload", {})
-                    if payload.get("type") == "message":
-                        last_message_idx = i
-                        last_message_role = payload.get("role", "")
-                        break
+            last_effective = effective_last_message_after_rollback_removal(records)
+            if last_effective is not None:
+                last_message_idx, last_message_role = last_effective
 
     for original, record in zip(lines, records):
         assert record is not None
@@ -373,7 +452,7 @@ def rewrite_session(
         if (
             fix_model_turn
             and last_message_idx is not None
-            and last_message_role == "assistant"
+            and last_message_role in ("assistant", "model")
             and record is records[last_message_idx]
         ):
             meta = payload.get("internal_chat_message_metadata_passthrough") or {}
@@ -442,6 +521,47 @@ def update_thread_provider(codex_home: Path, session_id: str, provider: str) -> 
     return backup
 
 
+def disable_remote_compaction(codex_home: Path) -> Path | None:
+    """Add ``remote_compaction_v2 = false`` under ``[features]`` in config.toml.
+
+    Backs up the file first. Returns the backup path, or ``None`` when the
+    feature is already disabled. The user must explicitly approve this write;
+    it affects the global Codex config, not just one session.
+    """
+    config = codex_home / "config.toml"
+    if not config.is_file():
+        raise FileNotFoundError(f"config.toml not found: {config}")
+    text = config.read_text(encoding="utf-8")
+
+    if re.search(r"^\s*remote_compaction_v2\s*=\s*false\s*$", text, re.MULTILINE):
+        return None
+
+    backup = backup_file(config, "disable-remote-compaction")
+
+    if re.search(r"^\s*remote_compaction_v2\s*=\s*true\s*$", text, re.MULTILINE):
+        text = re.sub(
+            r"^\s*remote_compaction_v2\s*=\s*true\s*$",
+            "remote_compaction_v2 = false",
+            text,
+            count=1,
+            flags=re.MULTILINE,
+        )
+    else:
+        if not re.search(r"^\[features\]\s*$", text, re.MULTILINE):
+            text = text.rstrip() + "\n\n[features]\n"
+            text += "remote_compaction_v2 = false\n"
+        else:
+            text = re.sub(
+                r"^(\[features\]\s*)$",
+                r"\1remote_compaction_v2 = false\n",
+                text,
+                count=1,
+                flags=re.MULTILINE,
+            )
+    config.write_text(text, encoding="utf-8")
+    return backup
+
+
 def print_report(report: dict[str, Any], as_json: bool) -> None:
     safe = dict(report)
     # The full reasoning ID list is useful for local debugging but noisy in the
@@ -472,6 +592,18 @@ def print_report(report: dict[str, Any], as_json: bool) -> None:
         f"turns={mt.get('effective_turn_count')}"
     )
 
+    rc = safe.get("remote_compaction", {})
+    if rc.get("logged_error"):
+        print()
+        print("Remote compaction not supported by current provider/model:")
+        print("  The backend did not return the `type: \"compaction\"` output item that Codex")
+        print("  remote compaction v2 requires (error: 'expected exactly one compaction")
+        print("  output item, got 0 from N output items').")
+        print("  Fix: disable remote compaction (add `remote_compaction_v2 = false` under")
+        print("  `[features]` in config.toml, or run with --disable-remote-compaction")
+        print("  after user approval), or switch to a provider/model that supports it,")
+        print("  then fully quit and relaunch Codex Desktop.")
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -490,6 +622,12 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Append a user message after the last assistant message so Gemini "
         "compaction does not fail with 'Requests ending with a model turn are not supported'",
+    )
+    parser.add_argument(
+        "--disable-remote-compaction",
+        action="store_true",
+        help="Add remote_compaction_v2 = false under [features] in config.toml "
+        "(backup first). Requires --apply; use only with user approval.",
     )
     parser.add_argument("--apply", action="store_true", help="Write the requested repair; default is dry-run")
     parser.add_argument("--json", action="store_true", help="Print the diagnostic report as JSON")
@@ -525,6 +663,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         db_backup = None
         if args.fix_provider and args.provider:
             db_backup = update_thread_provider(codex_home, args.session_id, args.provider)
+        config_backup = None
+        if args.disable_remote_compaction:
+            config_backup = disable_remote_compaction(codex_home)
         print(
             f"Applied: removed_reasoning={removed}, "
             f"session_meta_provider_updates={provider_updates}, "
@@ -534,6 +675,12 @@ def main(argv: Iterable[str] | None = None) -> int:
             print(f"Session backup: {session_backup}")
         if db_backup:
             print(f"Database backup: {db_backup}")
+        if args.disable_remote_compaction:
+            if config_backup:
+                print(f"config.toml backup: {config_backup}")
+                print("Remote compaction disabled (remote_compaction_v2 = false under [features]).")
+            else:
+                print("Remote compaction already disabled in config.toml; no change.")
         print("Post-repair report:")
         print_report(inspect_session(codex_home, args.session_id), args.json)
         return 0
