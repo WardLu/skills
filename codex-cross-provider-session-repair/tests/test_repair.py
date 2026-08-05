@@ -104,6 +104,42 @@ class RepairTests(unittest.TestCase):
             repair.rewrite_session(report, None, False, "all")
 
 
+    def test_reports_remote_compaction_unsupported(self):
+        logs = sqlite3.connect(self.home / "logs_2.sqlite")
+        logs.execute(
+            "INSERT INTO logs(thread_id, level, feedback_log_body) VALUES (?, ?, ?)",
+            (SESSION_ID, "ERROR", "Error running remote compact task: Fatal error: remote compaction v2 expected exactly one compaction output item, got 0 from 1 output items"),
+        )
+        logs.commit()
+        logs.close()
+
+        report = repair.inspect_session(self.home, SESSION_ID)
+        self.assertTrue(report["remote_compaction"]["logged_error"])
+        self.assertTrue(report["remote_compaction"]["unsupported"])
+
+    def test_disable_remote_compaction_adds_feature(self):
+        config = self.home / "config.toml"
+        config.write_text('model_provider = "custom"\n[features]\n', encoding="utf-8")
+
+        backup = repair.disable_remote_compaction(self.home)
+
+        self.assertTrue(backup is not None and backup.exists())
+        text = config.read_text(encoding="utf-8")
+        self.assertIn("remote_compaction_v2 = false", text)
+
+    def test_disable_remote_compaction_is_idempotent(self):
+        config = self.home / "config.toml"
+        config.write_text(
+            'model_provider = "custom"\n[features]\nremote_compaction_v2 = false\n',
+            encoding="utf-8",
+        )
+
+        backup = repair.disable_remote_compaction(self.home)
+
+        self.assertIsNone(backup)
+        self.assertIn("remote_compaction_v2 = false", config.read_text(encoding="utf-8"))
+
+
 class ModelTurnTests(unittest.TestCase):
     """Tests for Gemini model-turn-ending compaction detection and repair."""
 
@@ -204,6 +240,41 @@ class ModelTurnTests(unittest.TestCase):
         backup, _, _, inserts = repair.rewrite_session(
             report, None, False, "none", fix_model_turn=True
         )
+        self.assertEqual(inserts, 1)
+        after = repair.inspect_session(self.home, SESSION_ID_MT)
+        self.assertFalse(after["model_turn"]["model_turn_risk"])
+        self.assertEqual(after["model_turn"]["last_effective_role"], "user")
+
+    def test_fix_model_turn_appends_user_when_raw_tail_is_user_but_effective_ends_assistant(self):
+        """Regression: raw JSONL tail is a user message from an unfinished or
+        rolled-back turn, but the effective history ends with an assistant
+        message. The rewrite must still append the dummy user message after the
+        effective assistant turn."""
+        self.session_path.write_text(
+            "".join(
+                [
+                    event("session_meta", {"id": SESSION_ID_MT, "model_provider": "custom", "cwd": "/work"}),
+                    event("event_msg", {"type": "task_started", "turn_id": "t1"}),
+                    msg("user", "Hello", "t1"),
+                    msg("assistant", "Hi there", "t1"),
+                    event("event_msg", {"type": "task_complete", "turn_id": "t1"}),
+                    # Unfinished turn: raw tail is a user message, but it does
+                    # not belong to the effective (completed) history.
+                    event("event_msg", {"type": "task_started", "turn_id": "t2"}),
+                    msg("user", "Pending", "t2"),
+                ]
+            ),
+            encoding="utf-8",
+        )
+        report = repair.inspect_session(self.home, SESSION_ID_MT)
+        mt = report["model_turn"]
+        self.assertTrue(mt["model_turn_risk"])
+        self.assertEqual(mt["last_effective_role"], "assistant")
+
+        backup, _, _, inserts = repair.rewrite_session(
+            report, None, False, "none", fix_model_turn=True
+        )
+        self.assertTrue(backup and backup.exists())
         self.assertEqual(inserts, 1)
         after = repair.inspect_session(self.home, SESSION_ID_MT)
         self.assertFalse(after["model_turn"]["model_turn_risk"])

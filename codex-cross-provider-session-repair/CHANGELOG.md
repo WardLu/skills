@@ -20,6 +20,24 @@ All notable changes to this skill are documented here.
 
 ## [Unreleased]
 
+### Fixed
+
+- `--fix-model-turn` now appends the dummy user message based on the effective
+  history after `thread_rolled_back` events are stripped, instead of the raw
+  JSONL tail. This fixes sessions where an unfinished or rolled-back turn left a
+  trailing user message while the effective history still ended with an
+  assistant turn.
+
+### Added
+
+- Diagnose Codex remote-compaction-v2 failures (`remote compaction v2 expected
+  exactly one compaction output item, got 0 from N output items`). The report
+  now prints a user-friendly hint: disable remote compaction or switch to a
+  provider/model that supports it. New `--disable-remote-compaction` flag
+  (requires `--apply` and explicit user approval) writes
+  `remote_compaction_v2 = false` under `[features]` in config.toml with a backup.
+- Tests for the model-turn regression and remote-compaction diagnostics.
+
 ### Added
 
 - Added a Simplified Chinese README for the repository root.

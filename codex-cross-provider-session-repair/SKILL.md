@@ -69,6 +69,18 @@ The second failure is not fixed by changing the provider, deleting `config.toml`
 
 A third failure occurs when switching to a Gemini-backed model (e.g. `gemini-3.6-flash-high` via a proxy such as CC Switch). Gemini's API rejects requests whose message history ends with a `model`/assistant turn: `Requests ending with a model turn are not supported.` (HTTP 400 INVALID_ARGUMENT). Codex triggers pre-sampling context compaction (`CompHashChanged`) on model switch; if the effective history after `thread_rolled_back` events ends with an assistant message, the compaction request fails and the turn cannot start. This is systemic—every session switched to Gemini that needs compaction will hit it until the JSONL is repaired.
 
+A fourth failure occurs when the current provider/model does not implement
+Codex's remote compaction v2. The turn fails with `Error running remote compact
+task: Fatal error: remote compaction v2 expected exactly one compaction output
+item, got 0 from N output items`. This is not a JSONL corruption: the backend
+simply did not return the `type: "compaction"` output item Codex requires. The
+report prints a user-friendly hint and the operator should either disable
+remote compaction or switch to a provider/model that supports it. The script
+offers `--disable-remote-compaction` (requires `--apply` and explicit user
+approval) to write `remote_compaction_v2 = false` under `[features]` in
+config.toml with a backup; after applying, fully quit and relaunch Codex
+Desktop.
+
 ## Safety contract
 
 - Work on the requested session ID only. Do not update every thread or every session by default.
