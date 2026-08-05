@@ -21,7 +21,7 @@
 
 | Skill | 用途 | 版本 | 文档 |
 | --- | --- | --- | --- |
-| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | 在不删除 Codex 目录的前提下，诊断并修复供应商不一致，以及远程上下文压缩出现 `404 Item with id 'rs_...' not found` 的问题。 | `0.3.0` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | 在不删除 Codex 目录的前提下，诊断并修复供应商不一致，以及远程上下文压缩出现 `404 Item with id 'rs_...' not found` 的问题。 | `0.4.0` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
 
 ## 安装
 

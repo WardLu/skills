@@ -18,7 +18,7 @@ All notable changes to this skill are documented here.
 - Dry-run report now includes a `Model-turn compaction` line with risk status,
   last effective role/line, and effective message/turn counts.
 
-## [Unreleased]
+## [0.4.0] - 2026-08-05
 
 ### Fixed
 
@@ -37,9 +37,6 @@ All notable changes to this skill are documented here.
   (requires `--apply` and explicit user approval) writes
   `remote_compaction_v2 = false` under `[features]` in config.toml with a backup.
 - Tests for the model-turn regression and remote-compaction diagnostics.
-
-### Added
-
 - Added a Simplified Chinese README for the repository root.
 
 ### Changed
