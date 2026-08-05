@@ -21,7 +21,7 @@ The first skill in the collection is Codex-specific: it helps recover an old Cod
 
 | Skill | Purpose | Version | Documentation |
 | --- | --- | --- | --- |
-| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | Diagnose and repair provider mismatches and remote compaction `404 Item with id 'rs_...' not found` errors without deleting the Codex home. | `0.3.0` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | Diagnose and repair provider mismatches and remote compaction `404 Item with id 'rs_...' not found` errors without deleting the Codex home. | `0.4.0` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
 
 ## Install
 
