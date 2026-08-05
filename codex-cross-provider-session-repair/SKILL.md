@@ -4,7 +4,7 @@ description: Repair Codex Desktop sessions that fail after switching model provi
 license: MIT
 compatibility: Requires Python 3.9+ with the standard library; Windows, macOS, and Linux Codex homes are supported. Stop Codex Desktop before applying file or database changes.
 metadata:
-  version: "0.3.0"
+  version: "0.4.0"
   repository: "https://github.com/WardLu/skills/tree/main/codex-cross-provider-session-repair"
   maintainer: "Ward Lu"
 ---
