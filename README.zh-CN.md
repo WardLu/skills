@@ -127,3 +127,15 @@ python scripts/package.py --output ./dist
 不要提交真实用户数据、会话日志、备份、令牌或 API 密钥。对于当前 Codex 专用 Skill，请在提交诊断数据前阅读 [`SECURITY.md`](codex-cross-provider-session-repair/SECURITY.md)。
 
 本集合及其中的 Skill 均采用 [MIT 许可证](LICENSE)。
+
+
+## 联系我
+
+如果你对 B 端产品、AI 产品开发、供应链数字化或 Shadow 系列产品感兴趣，可以联系我：
+
+- **X（Twitter）**：[@Gollumgulu](https://x.com/Gollumgulu)
+- **微信公众号** — ![微信公众号二维码](https://cdn.jsdelivr.net/gh/WardLu/mypic/images%E5%BE%AE%E4%BF%A1%E5%85%AC%E4%BC%97%E5%8F%B7.jpg)
+- **小红书 / 微博 / 抖音**：全网同名「Ward的AI产品实战」—— [小红书](https://xhslink.cn/m/4W1NWyRrxv5) · [微博](https://weibo.com/u/8344390431) · [抖音](https://v.douyin.com/1y06PMohfoE/)
+- **Email**：[wardlu@126.com](mailto:wardlu@126.com)
+
+> 可接 1v1 咨询和项目陪跑：产品诊断 · AI 实施 · 工作流 / Skill · 系统定制

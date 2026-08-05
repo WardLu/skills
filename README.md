@@ -126,3 +126,15 @@ See the contribution rules in [`codex-cross-provider-session-repair/CONTRIBUTING
 Do not commit real user data, session logs, backups, tokens, or API keys. For the current Codex-specific skill, read [`SECURITY.md`](codex-cross-provider-session-repair/SECURITY.md) before filing a bug with diagnostic data.
 
 This collection and its skills are released under the [MIT License](LICENSE).
+
+
+## Contact
+
+Interested in B2B products, AI product development, supply-chain digitalization, or the Shadow product line? Feel free to reach out:
+
+- **X (Twitter)** — [@Gollumgulu](https://x.com/Gollumgulu)
+- **WeChat Official Account** — ![WeChat Official Account QR code](https://cdn.jsdelivr.net/gh/WardLu/mypic/images%E5%BE%AE%E4%BF%A1%E5%85%AC%E4%BC%97%E5%8F%B7.jpg)
+- **Xiaohongshu (RED) / Weibo / Douyin** — same handle「Ward的AI产品实战」across platforms: [Xiaohongshu (RED)](https://xhslink.cn/m/4W1NWyRrxv5) · [Weibo](https://weibo.com/u/8344390431) · [Douyin](https://v.douyin.com/1y06PMohfoE/)
+- **Email** — [wardlu@126.com](mailto:wardlu@126.com)
+
+> Available for 1:1 consulting and project coaching: product diagnosis · AI implementation · workflow / Skill · system customization
