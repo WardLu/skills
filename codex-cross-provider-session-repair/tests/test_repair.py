@@ -1,8 +1,10 @@
 import json
+import io
 import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
@@ -72,9 +74,17 @@ class RepairTests(unittest.TestCase):
         self.assertEqual(report["stale_ids_present_as_reasoning"], ["rs_stale_1", "rs_stale_2"])
         self.assertEqual(report["reasoning_item_count"], 2)
 
+    def test_report_labels_log_ids_as_historical(self):
+        report = repair.inspect_session(self.home, SESSION_ID)
+        output = io.StringIO()
+        with redirect_stdout(output):
+            repair.print_report(report, as_json=False)
+
+        self.assertIn("Historical remote stale IDs (from logs):", output.getvalue())
+
     def test_stale_repair_preserves_visible_and_event_items(self):
         report = repair.inspect_session(self.home, SESSION_ID)
-        backup, removed, provider_updates, _ = repair.rewrite_session(report, None, False, "stale")
+        backup, removed, provider_updates, _, _ = repair.rewrite_session(report, None, False, "stale")
         self.assertTrue(backup and backup.exists())
         self.assertEqual(removed, 2)
         self.assertEqual(provider_updates, 0)
@@ -86,7 +96,7 @@ class RepairTests(unittest.TestCase):
 
     def test_provider_repair_updates_only_target_layers(self):
         report = repair.inspect_session(self.home, SESSION_ID)
-        backup, removed, provider_updates, _ = repair.rewrite_session(report, "custom", True, "none")
+        backup, removed, provider_updates, _, _ = repair.rewrite_session(report, "custom", True, "none")
         self.assertTrue(backup and backup.exists())
         self.assertEqual(removed, 0)
         self.assertEqual(provider_updates, 1)
@@ -95,6 +105,42 @@ class RepairTests(unittest.TestCase):
         after = repair.inspect_session(self.home, SESSION_ID)
         self.assertEqual(after["target_session_meta"][0]["model_provider"], "custom")
         self.assertEqual(after["root_thread"]["model_provider"], "custom")
+
+    def test_model_repair_updates_target_settings_and_database(self):
+        self.session_path.write_text(
+            self.session_path.read_text(encoding="utf-8")
+            + event(
+                "event_msg",
+                {
+                    "type": "thread_settings_applied",
+                    "thread_settings": {
+                        "model": "ark-code-latest",
+                        "collaboration_mode": {"settings": {"model": "ark-code-latest"}},
+                    },
+                },
+            )
+            + event("event_msg", {"type": "turn_context", "model": "ark-code-latest"}),
+            encoding="utf-8",
+        )
+        report = repair.inspect_session(self.home, SESSION_ID)
+
+        backup, removed, provider_updates, inserts, model_updates = repair.rewrite_session(
+            report,
+            None,
+            False,
+            "none",
+            fix_model=True,
+            model="gpt-5.6-luna",
+        )
+        db_backup = repair.update_thread_model(self.home, SESSION_ID, "gpt-5.6-luna")
+
+        self.assertTrue(backup and backup.exists())
+        self.assertEqual((removed, provider_updates, inserts, model_updates), (0, 0, 0, 2))
+        self.assertTrue(db_backup and db_backup.exists())
+        text = self.session_path.read_text(encoding="utf-8")
+        self.assertNotIn("ark-code-latest", text)
+        self.assertIn("gpt-5.6-luna", text)
+        self.assertEqual(repair.inspect_session(self.home, SESSION_ID)["root_thread"]["model"], "gpt-5.6-luna")
 
     def test_malformed_jsonl_is_not_rewritten(self):
         with self.session_path.open("a", encoding="utf-8") as handle:
@@ -199,7 +245,7 @@ class ModelTurnTests(unittest.TestCase):
 
     def test_fix_model_turn_removes_rollbacks(self):
         report = repair.inspect_session(self.home, SESSION_ID_MT)
-        backup, _, _, inserts = repair.rewrite_session(
+        backup, _, _, inserts, _ = repair.rewrite_session(
             report, None, False, "none", fix_model_turn=True
         )
         self.assertTrue(backup and backup.exists())
@@ -237,7 +283,7 @@ class ModelTurnTests(unittest.TestCase):
         self.assertTrue(mt["model_turn_risk"])
         self.assertEqual(mt["last_effective_role"], "assistant")
 
-        backup, _, _, inserts = repair.rewrite_session(
+        backup, _, _, inserts, _ = repair.rewrite_session(
             report, None, False, "none", fix_model_turn=True
         )
         self.assertEqual(inserts, 1)
@@ -271,7 +317,7 @@ class ModelTurnTests(unittest.TestCase):
         self.assertTrue(mt["model_turn_risk"])
         self.assertEqual(mt["last_effective_role"], "assistant")
 
-        backup, _, _, inserts = repair.rewrite_session(
+        backup, _, _, inserts, _ = repair.rewrite_session(
             report, None, False, "none", fix_model_turn=True
         )
         self.assertTrue(backup and backup.exists())

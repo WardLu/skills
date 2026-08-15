@@ -1,0 +1,7 @@
+interface:
+  display_name: "Public Release Gate"
+  short_description: "Audit release artifacts, metadata, and deployment state"
+  default_prompt: "Use $public-release-gate to audit this release before creating its tag or publishing artifacts."
+
+policy:
+  allow_implicit_invocation: false

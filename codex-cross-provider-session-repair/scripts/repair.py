@@ -312,6 +312,34 @@ def effective_last_message_after_rollback_removal(records: list[dict[str, Any] |
     return None
 
 
+def read_structured_models(records: list[dict[str, Any] | None]) -> list[str]:
+    """Collect model values from structured per-turn settings in the rollout."""
+    models: list[str] = []
+    for record in records:
+        if not record or record.get("type") != "event_msg":
+            continue
+        payload = record.get("payload") or {}
+        event_type = payload.get("type")
+        if event_type == "turn_context" and isinstance(payload.get("model"), str):
+            models.append(payload["model"])
+            continue
+        if event_type != "thread_settings_applied":
+            continue
+        settings = payload.get("thread_settings")
+        if not isinstance(settings, dict):
+            continue
+        if isinstance(settings.get("model"), str):
+            models.append(settings["model"])
+        collaboration = settings.get("collaboration_mode")
+        if isinstance(collaboration, dict):
+            collaboration_settings = collaboration.get("settings")
+            if isinstance(collaboration_settings, dict) and isinstance(
+                collaboration_settings.get("model"), str
+            ):
+                models.append(collaboration_settings["model"])
+    return models
+
+
 def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
     rollout = find_rollout(codex_home, session_id)
     lines, records, parse_errors = read_jsonl(rollout)
@@ -353,6 +381,7 @@ def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
         "stale_ids_present_as_reasoning": sorted(set(stale_ids) & reasoning_set),
         "reasoning_item_count": len(reasoning_ids),
         "reasoning_item_ids": reasoning_ids,
+        "structured_model_values": read_structured_models(records),
         "child_database_present": (codex_home / "sqlite" / "state_5.sqlite").is_file(),
         "model_turn": model_turn_info,
         "remote_compaction": {
@@ -378,29 +407,36 @@ def rewrite_session(
     fix_provider: bool,
     remove_reasoning: str,
     fix_model_turn: bool = False,
-) -> tuple[Path | None, int, int, int]:
+    fix_model: bool = False,
+    model: str | None = None,
+) -> tuple[Path | None, int, int, int, int]:
     """Rewrite session JSONL.
 
-    Returns ``(backup_path, removed_reasoning, provider_updates, model_turn_inserts)``.
+    Returns ``(backup_path, removed_reasoning, provider_updates, model_turn_inserts, model_updates)``.
 
     When *fix_model_turn* is set the function also strips ``thread_rolled_back``
     events so that previously rolled-back turns become effective again.  If the
     last response_item message is still an assistant turn after that, a dummy
     user message is appended to satisfy Gemini's requirement that requests must
-    not end with a model turn.
+    not end with a model turn. When *fix_model* is set, structured model
+    settings in the target rollout are changed to *model*.
     """
     path = Path(report["rollout_path"])
     lines, records, parse_errors = read_jsonl(path)
     if parse_errors:
         raise ValueError(f"refusing to rewrite malformed JSONL; lines: {parse_errors[:10]}")
 
+    if fix_model and not model:
+        raise ValueError("fix_model requires a target model")
+
     stale = set(report["stale_ids_present_as_reasoning"])
-    needs_write = remove_reasoning != "none" or fix_provider or fix_model_turn
+    needs_write = remove_reasoning != "none" or fix_provider or fix_model_turn or fix_model
     backup = backup_file(path, "session-repair") if needs_write else None
     output: list[str] = []
     removed = 0
     provider_updates = 0
     model_turn_inserts = 0
+    model_updates = 0
     rollbacks_removed = 0
 
     # When fixing model-turn, find the last effective response_item message
@@ -445,6 +481,32 @@ def rewrite_session(
             provider_updates += 1
             output.append(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
             continue
+        if fix_model and model and record.get("type") == "event_msg":
+            model_changed = False
+            event_type = payload.get("type")
+            if event_type == "thread_settings_applied":
+                settings = payload.get("thread_settings")
+                if isinstance(settings, dict):
+                    if settings.get("model") != model:
+                        settings["model"] = model
+                        model_changed = True
+                    collaboration = settings.get("collaboration_mode")
+                    if isinstance(collaboration, dict):
+                        collaboration_settings = collaboration.get("settings")
+                        if (
+                            isinstance(collaboration_settings, dict)
+                            and collaboration_settings.get("model") != model
+                        ):
+                            collaboration_settings["model"] = model
+                            model_changed = True
+            elif event_type == "turn_context" and payload.get("model") != model:
+                payload["model"] = model
+                model_changed = True
+            if model_changed:
+                record["payload"] = payload
+                model_updates += 1
+                output.append(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
+                continue
         output.append(original)
 
         # Insert a user message right after the last assistant message so
@@ -476,7 +538,7 @@ def rewrite_session(
             model_turn_inserts += 1
 
     if not needs_write:
-        return None, 0, 0, 0
+        return None, 0, 0, 0, 0
 
     temporary = path.with_name(f".{path.name}.repair-{os.getpid()}.tmp")
     with temporary.open("w", encoding="utf-8", newline="") as handle:
@@ -491,7 +553,7 @@ def rewrite_session(
         raise
     if rollbacks_removed:
         print(f"Removed {rollbacks_removed} thread_rolled_back event(s) to restore effective turns.")
-    return backup, removed, provider_updates, model_turn_inserts
+    return backup, removed, provider_updates, model_turn_inserts, model_updates
 
 
 def update_thread_provider(codex_home: Path, session_id: str, provider: str) -> Path | None:
@@ -512,6 +574,32 @@ def update_thread_provider(codex_home: Path, session_id: str, provider: str) -> 
         connection.execute(
             "UPDATE threads SET model_provider = ? WHERE id = ?", (provider, session_id)
         )
+        connection.commit()
+    except Exception:
+        connection.rollback()
+        raise
+    finally:
+        connection.close()
+    return backup
+
+
+def update_thread_model(codex_home: Path, session_id: str, model: str) -> Path | None:
+    """Update only the target thread's model snapshot, with a database backup."""
+    database = codex_home / "state_5.sqlite"
+    row = read_thread_row(database, session_id)
+    if not row or row.get("error") or "model" not in row:
+        return None
+    if row["model"] == model:
+        return None
+    backup = backup_file(database, "session-model-repair")
+    for suffix in ("-wal", "-shm"):
+        sidecar = Path(str(database) + suffix)
+        if sidecar.is_file():
+            shutil.copy2(sidecar, Path(str(backup) + suffix))
+    connection = sqlite3.connect(database)
+    try:
+        connection.execute("BEGIN IMMEDIATE")
+        connection.execute("UPDATE threads SET model = ? WHERE id = ?", (model, session_id))
         connection.commit()
     except Exception:
         connection.rollback()
@@ -576,7 +664,7 @@ def print_report(report: dict[str, Any], as_json: bool) -> None:
     print(f"Global provider: {safe['global_provider'] or '(not found)'}")
     print(f"Target session_meta: {safe['target_session_meta']}")
     print(f"Root threads row: {safe['root_thread'] or '(not found)'}")
-    print(f"Remote stale IDs: {safe['stale_remote_item_ids']}")
+    print(f"Historical remote stale IDs (from logs): {safe['stale_remote_item_ids']}")
     print(f"Stale IDs present as local reasoning: {safe['stale_ids_present_as_reasoning']}")
     print(f"Local reasoning records: {safe['reasoning_item_count']}")
     print(f"Child sqlite database present: {safe['child_database_present']}")
@@ -611,6 +699,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--codex-home", help="Override CODEX_HOME")
     parser.add_argument("--provider", help="Current provider to write when --fix-provider is used")
     parser.add_argument("--fix-provider", action="store_true", help="Repair target session_meta and DB provider")
+    parser.add_argument("--model", help="Target model to write when --fix-model is used")
+    parser.add_argument("--fix-model", action="store_true", help="Repair target model settings and DB model")
     parser.add_argument(
         "--remove-reasoning",
         choices=("none", "stale", "all"),
@@ -647,6 +737,8 @@ def main(argv: Iterable[str] | None = None) -> int:
             raise ValueError("refusing to apply: JSONL has parse errors")
         if args.fix_provider and not args.provider:
             raise ValueError("--fix-provider requires --provider")
+        if args.fix_model and not args.model:
+            raise ValueError("--fix-model requires --model")
         if args.remove_reasoning == "stale" and not report["stale_ids_present_as_reasoning"]:
             print("No stale local reasoning IDs matched; no session rewrite needed.")
         mt = report.get("model_turn", {})
@@ -656,25 +748,38 @@ def main(argv: Iterable[str] | None = None) -> int:
         removed = 0
         provider_updates = 0
         model_turn_inserts = 0
-        if args.remove_reasoning != "none" or args.fix_provider or args.fix_model_turn:
-            session_backup, removed, provider_updates, model_turn_inserts = rewrite_session(
-                report, args.provider, args.fix_provider, args.remove_reasoning, args.fix_model_turn
+        model_updates = 0
+        if args.remove_reasoning != "none" or args.fix_provider or args.fix_model_turn or args.fix_model:
+            session_backup, removed, provider_updates, model_turn_inserts, model_updates = rewrite_session(
+                report,
+                args.provider,
+                args.fix_provider,
+                args.remove_reasoning,
+                args.fix_model_turn,
+                args.fix_model,
+                args.model,
             )
         db_backup = None
         if args.fix_provider and args.provider:
             db_backup = update_thread_provider(codex_home, args.session_id, args.provider)
+        model_db_backup = None
+        if args.fix_model and args.model:
+            model_db_backup = update_thread_model(codex_home, args.session_id, args.model)
         config_backup = None
         if args.disable_remote_compaction:
             config_backup = disable_remote_compaction(codex_home)
         print(
             f"Applied: removed_reasoning={removed}, "
             f"session_meta_provider_updates={provider_updates}, "
-            f"model_turn_inserts={model_turn_inserts}"
+            f"model_turn_inserts={model_turn_inserts}, "
+            f"model_settings_updates={model_updates}"
         )
         if session_backup:
             print(f"Session backup: {session_backup}")
         if db_backup:
             print(f"Database backup: {db_backup}")
+        if model_db_backup:
+            print(f"Model database backup: {model_db_backup}")
         if args.disable_remote_compaction:
             if config_backup:
                 print(f"config.toml backup: {config_backup}")

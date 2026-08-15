@@ -20,12 +20,17 @@ jobs:
           python - <<'PY'
           import pathlib, subprocess, sys
           validator = pathlib.Path.home() / '.agents' / 'skills' / 'skill-creator' / 'scripts' / 'quick_validate.py'
-          root = pathlib.Path('codex-cross-provider-session-repair')
-          if validator.exists():
-              subprocess.check_call([sys.executable, str(validator), str(root)])
-          else:
-              text = (root / 'SKILL.md').read_text(encoding='utf-8')
-              assert text.startswith('---\n') and '\nname: codex-cross-provider-session-repair\n' in text
+          roots = sorted(path.parent for path in pathlib.Path('.').glob('*/SKILL.md'))
+          assert roots, 'no skill directories found'
+          for root in roots:
+              if validator.exists():
+                  subprocess.check_call([sys.executable, str(validator), str(root)])
+              else:
+                  text = (root / 'SKILL.md').read_text(encoding='utf-8')
+                  assert text.startswith('---\n') and '\nname:' in text and '\ndescription:' in text
           PY
       - name: Run offline tests
-        run: python -m unittest discover -s codex-cross-provider-session-repair/tests -v
+        run: |
+          for tests in */tests; do
+            python -m unittest discover -s "$tests" -v
+          done

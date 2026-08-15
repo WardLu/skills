@@ -15,13 +15,16 @@ Focused, versioned, open-source skills for agent workflows.
 
 ## What this repository is
 
-This repository is a collection of self-contained skills for AI agents and developer workflows. Each skill lives in its own kebab-case directory and includes its instructions, scripts, tests, documentation, license, and version metadata. Individual skills may target one agent or work across several agents; their compatibility is documented in each skill's README and `SKILL.md`.
+This repository is a collection of self-contained skills for AI agents and developer workflows. Each skill lives in its own kebab-case directory and includes a `SKILL.md`; scripts, tests, references, documentation, licenses, and version metadata are added when the skill needs them. Individual skills may target one agent or work across several agents; their compatibility is documented in each skill's `SKILL.md` and any linked references.
 
-The first skill in the collection is Codex-specific: it helps recover an old Codex Desktop conversation after a provider switch, import, or fork.
+The collection currently includes a Codex-specific session repair skill, public repository/release gates, and a framework-agnostic test-scope routing skill.
 
 | Skill | Purpose | Version | Documentation |
 | --- | --- | --- | --- |
-| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | Diagnose and repair provider mismatches and remote compaction `404 Item with id 'rs_...' not found` errors without deleting the Codex home. | `0.4.0` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | Diagnose and repair provider mismatches and remote compaction `404 Item with id 'rs_...' not found` errors without deleting the Codex home. | `0.7.5` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| [`public-release-gate`](public-release-gate/) | Review public repository releases, final artifacts, third-party notices, deployment headers, and GitHub Release attachments. | `0.1.0` | [SKILL.md](public-release-gate/SKILL.md) |
+| [`public-repo-git-gate`](public-repo-git-gate/) | Check public repository content and branch/remote/PR state across commit, push, and pull request workflows. | `0.1.0` | [SKILL.md](public-repo-git-gate/SKILL.md) |
+| [`test-scope-routing`](test-scope-routing/) | Route validation by change risk and affected boundaries instead of defaulting to the full test suite. | `0.1.0` | [SKILL.md](test-scope-routing/SKILL.md) |
 
 ## Install
 
@@ -101,8 +104,26 @@ The skill preserves visible messages and tool history. It does not delete the wh
 │   ├── evals/
 │   ├── VERSION
 │   ├── CHANGELOG.md
+│   ├── CONTRIBUTING.md
 │   ├── SECURITY.md
 │   └── LICENSE
+├── public-release-gate/
+│   ├── SKILL.md
+│   ├── agents/
+│   └── VERSION
+├── public-repo-git-gate/
+│   ├── SKILL.md
+│   ├── agents/
+│   ├── assets/
+│   ├── references/
+│   ├── scripts/
+│   ├── tests/
+│   └── VERSION
+├── test-scope-routing/
+│   ├── SKILL.md
+│   ├── agents/
+│   ├── references/
+│   └── VERSION
 ├── LICENSE
 └── README.md
 ~~~
