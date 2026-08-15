@@ -15,13 +15,16 @@
 
 ## 这是一个什么仓库
 
-这是一个面向 AI agent 和开发者工作流的自包含 Skill 集合。每个 Skill 都位于独立的 kebab-case 目录中，并包含自己的指令、脚本、测试、文档、许可证和版本元数据。不同 Skill 可以只支持某一个 agent，也可以跨多个 agent 使用；具体兼容性请以各 Skill 的 README 和 `SKILL.md` 为准。
+这是一个面向 AI agent 和开发者工作流的自包含 Skill 集合。每个 Skill 都位于独立的 kebab-case 目录中，并包含自己的 `SKILL.md`；脚本、测试、references、文档、许可证和版本元数据按需要加入。不同 Skill 可以只支持某一个 agent，也可以跨多个 agent 使用；具体兼容性请以各 Skill 的 `SKILL.md` 和直接引用的资源为准。
 
-当前集合中的第一个 Skill 专门用于 Codex：它可以修复切换模型供应商、导入或分叉旧会话后无法继续的 Codex Desktop 对话。
+当前集合包含一个 Codex 会话修复 Skill、公开仓库/Release 闸门，以及一个跨框架的测试范围路由 Skill。
 
 | Skill | 用途 | 版本 | 文档 |
 | --- | --- | --- | --- |
-| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | 在不删除 Codex 目录的前提下，诊断并修复供应商不一致，以及远程上下文压缩出现 `404 Item with id 'rs_...' not found` 的问题。 | `0.4.0` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | 在不删除 Codex 目录的前提下，诊断并修复供应商不一致，以及远程上下文压缩出现 `404 Item with id 'rs_...' not found` 的问题。 | `0.7.5` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| [`public-release-gate`](public-release-gate/) | 审核公开仓库的 Release、最终产物、第三方许可证、部署响应头和 GitHub Release 附件。 | `0.1.0` | [SKILL.md](public-release-gate/SKILL.md) |
+| [`public-repo-git-gate`](public-repo-git-gate/) | 覆盖 commit、push 和 Pull Request 的公开内容、分支、远程仓库和 PR 状态检查。 | `0.1.0` | [SKILL.md](public-repo-git-gate/SKILL.md) |
+| [`test-scope-routing`](test-scope-routing/) | 根据改动风险和受影响边界选择验证范围，避免默认运行全量测试。 | `0.1.0` | [SKILL.md](test-scope-routing/SKILL.md) |
 
 ## 安装
 
@@ -101,8 +104,26 @@ cd skills/codex-cross-provider-session-repair
 │   ├── evals/
 │   ├── VERSION
 │   ├── CHANGELOG.md
+│   ├── CONTRIBUTING.md
 │   ├── SECURITY.md
 │   └── LICENSE
+├── public-release-gate/
+│   ├── SKILL.md
+│   ├── agents/
+│   └── VERSION
+├── public-repo-git-gate/
+│   ├── SKILL.md
+│   ├── agents/
+│   ├── assets/
+│   ├── references/
+│   ├── scripts/
+│   ├── tests/
+│   └── VERSION
+├── test-scope-routing/
+│   ├── SKILL.md
+│   ├── agents/
+│   ├── references/
+│   └── VERSION
 ├── LICENSE
 ├── README.md
 └── README.zh-CN.md
