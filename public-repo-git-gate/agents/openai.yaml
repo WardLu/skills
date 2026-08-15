@@ -1,0 +1,7 @@
+interface:
+  display_name: "Public Repository Git Gate"
+  short_description: "Check public Git commits, pushes, and pull requests"
+  default_prompt: "Use $public-repo-git-gate to audit this repository before committing or opening a pull request."
+
+policy:
+  allow_implicit_invocation: false
