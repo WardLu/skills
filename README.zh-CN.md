@@ -7,7 +7,7 @@
 [![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [Issues](https://github.com/WardLu/skills/issues)
+[English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
 
 </div>
 
@@ -116,6 +116,7 @@ cd skills/codex-cross-provider-session-repair
 ~~~text
 .
 ├── .github/workflows/validate-skills.yml
+├── CHANGELOG.md
 ├── codex-cross-provider-session-repair/
 │   ├── SKILL.md
 │   ├── README.md
