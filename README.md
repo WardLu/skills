@@ -5,7 +5,7 @@
 Focused, versioned, open-source skills for agent workflows.
 
 [![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
-[![Collection version 0.1.0](https://img.shields.io/badge/collection%20version-0.1.0-2563eb.svg)](VERSION)
+[![Collection version 0.2.0](https://img.shields.io/badge/collection%20version-0.2.0-2563eb.svg)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
@@ -173,7 +173,7 @@ python scripts/repair.py --help
 python scripts/package.py --output ./dist
 ~~~
 
-Skills follow [Semantic Versioning](https://semver.org/). The canonical version is stored in `VERSION` and mirrored in `SKILL.md`. User-visible changes should update `CHANGELOG.md`; release tags use `vMAJOR.MINOR.PATCH`.
+Skills follow [Semantic Versioning](https://semver.org/). The collection version is stored in the root `VERSION` and represented by the root release sequence (`vMAJOR.MINOR.PATCH`). Individual skills keep independent versions in their own `VERSION` and `CHANGELOG.md`; an individual skill version is not a collection version. User-visible changes should update the matching changelog, and unscoped repository tags should use the collection sequence.
 
 See the contribution rules in [`codex-cross-provider-session-repair/CONTRIBUTING.md`](codex-cross-provider-session-repair/CONTRIBUTING.md).
 

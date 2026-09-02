@@ -5,7 +5,7 @@
 面向 AI agent 工作流的专注型、可版本管理、开源 Skill 集合。
 
 [![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
-[![集合版本 0.1.0](https://img.shields.io/badge/collection%20version-0.1.0-2563eb.svg)](VERSION)
+[![集合版本 0.2.0](https://img.shields.io/badge/collection%20version-0.2.0-2563eb.svg)](VERSION)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
@@ -174,7 +174,7 @@ python scripts/repair.py --help
 python scripts/package.py --output ./dist
 ~~~
 
-所有 Skill 遵循[语义化版本](https://semver.org/)。规范版本存放在 `VERSION`，并同步写入 `SKILL.md`。面向用户的变更应更新 `CHANGELOG.md`；发布标签使用 `vMAJOR.MINOR.PATCH`。
+所有 Skill 遵循[语义化版本](https://semver.org/)。集合版本存放在根目录 `VERSION`，并使用根 Release 序列（`vMAJOR.MINOR.PATCH`）。每个 Skill 在自己的 `VERSION` 和 `CHANGELOG.md` 中维护独立版本；单个 Skill 的版本不等于集合版本。面向用户的变更应更新对应的变更记录，未加前缀的仓库 Tag 应使用集合版本序列。
 
 贡献规则请参阅 [`codex-cross-provider-session-repair/CONTRIBUTING.md`](codex-cross-provider-session-repair/CONTRIBUTING.md)。
 
