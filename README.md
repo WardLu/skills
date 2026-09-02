@@ -5,6 +5,7 @@
 Focused, versioned, open-source skills for agent workflows.
 
 [![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
+[![Collection version 0.1.0](https://img.shields.io/badge/collection%20version-0.1.0-2563eb.svg)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
@@ -117,6 +118,7 @@ The skill preserves visible messages and tool history. It does not delete the wh
 .
 ├── .github/workflows/validate-skills.yml
 ├── CHANGELOG.md
+├── VERSION
 ├── codex-cross-provider-session-repair/
 │   ├── SKILL.md
 │   ├── README.md
