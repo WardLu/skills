@@ -5,6 +5,7 @@
 面向 AI agent 工作流的专注型、可版本管理、开源 Skill 集合。
 
 [![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
+[![集合版本 0.1.0](https://img.shields.io/badge/collection%20version-0.1.0-2563eb.svg)](VERSION)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
@@ -117,6 +118,7 @@ cd skills/codex-cross-provider-session-repair
 .
 ├── .github/workflows/validate-skills.yml
 ├── CHANGELOG.md
+├── VERSION
 ├── codex-cross-provider-session-repair/
 │   ├── SKILL.md
 │   ├── README.md
