@@ -1,21 +1,33 @@
 ---
 name: public-release-gate
-description: 通用公开仓库 Release 审核流程，覆盖版本与 Tag 一致性、最终构建产物、压缩包、密钥和内部资料、第三方许可证、生产响应头及 GitHub Release 附件核对。用户要求发布、打 Tag、创建 Release、上线验收或“按全局防线检查”时使用，并按项目实际配置调整。
+description: Review a public repository release across version and tag consistency, final build artifacts, archives, secrets and internal material, third-party licenses, production response headers, and GitHub Release attachments. Use when the user asks to publish, create a tag or Release, verify a launch, or run the complete public-release gate, adapting checks to the project's configuration.
 ---
 
 # Public Release Gate
 
-把 Release 当作独立交付物审核。仓库提交检查不等于 Release 审核；必须同时检查源码、最终产物、发布页面和部署状态。commit、push 和 PR 的公开内容与分支闸门由同仓库的 `public-repo-git-gate` skill 负责，不在每次普通提交时重复执行本 skill 的产物检查。
+Treat a Release as a separate deliverable. Repository commit checks do not
+constitute a Release review; inspect the source, final artifacts, release page,
+and deployment state together. The sibling `public-repo-git-gate` skill owns
+the public-content and branch gates for commit, push, and PR operations. Do not
+repeat this skill's artifact checks for an ordinary commit.
 
-本 skill 是人工审核流程，不宣称单个脚本或 CI 通过就能证明所有 Release 条件。优先复用项目已有的自动化检查，再补做最终产物、托管平台和生产环境的人工核对；没有实际证据时，不得标记为通过。
+This skill is a manual review workflow. A passing script or CI job alone does
+not prove every Release condition. Reuse the project's existing automated
+checks first, then manually verify final artifacts, the hosting platform, and
+production. Mark the gate as passed only when the required evidence exists.
 
-审核阶段默认只读。创建 Tag、GitHub Release、上传附件、修改生产配置或部署都需要用户明确授权；通过本 skill 不等于获得这些操作的授权。
+Keep the review read-only by default. Creating a tag or GitHub Release,
+uploading attachments, changing production configuration, or deploying each
+requires explicit user authorization. Passing this gate does not authorize
+any of those actions.
 
-## 输入与输出
+## Inputs and output
 
-开始前明确仓库根目录、目标版本和 Tag、最终产物路径、第三方资源清单、生产地址以及项目专属配置。
+Before starting, identify the repository root, target version and tag, final
+artifact paths, third-party resource inventory, production URL, and
+project-specific configuration.
 
-完成后输出一条结构化记录，至少包含：
+Return a structured record containing at least:
 
 ```text
 Release gate: PASS | BLOCKED | FAILED
@@ -30,22 +42,39 @@ Evidence:
 Skipped checks / residual risks:
 ```
 
-`PASS` 只表示所有必需证据已核对；`BLOCKED` 表示缺少外部状态、权限或用户决定；`FAILED` 表示检查发现问题。两种非通过状态都不能创建 Tag、GitHub Release 或继续部署。
+`PASS` means that all required evidence was checked. `BLOCKED` means that an
+external state, permission, or user decision is missing. `FAILED` means that
+the review found a problem. Neither non-passing state permits creating a tag,
+GitHub Release, or continuing deployment.
 
-## 执行顺序
+## Workflow
 
-1. 识别仓库可见性、技术栈、构建命令、产物目录、版本来源、第三方资源和部署入口。
-2. 检查 `package.json`/锁文件或项目对应的版本文件、README、CHANGELOG、Release Notes 和 Tag 是否一致。
-3. 从干净状态构建最终产物；扫描产物目录和最终压缩包，不要只扫描源码。
-4. 检查密钥、个人数据、客户数据、内部商业/法律资料、私有模型或服务配置，以及不必要公开的文件。
-5. 对 vendored 代码、模型、WASM、字体和媒体逐项核对来源、版本/提交、许可证、再分发条件和 SHA-256；许可证清单必须匹配最终资源。
-6. 在部署完成后检查 HTTPS、HTTP 状态、关键静态入口、CSP、HSTS、X-Frame-Options 等项目要求的响应头。
-7. 创建 GitHub Release 前核对 Tag、Release 页面和每个附件；附件必须来自已扫描的最终产物，计算并记录 SHA-256。
-8. 涉及数据库迁移、边缘函数或外部配置时，单独确认生产状态。CI 通过不代表生产迁移已经执行。
+1. Identify repository visibility, technology stack, build commands, artifact
+   directories, version sources, third-party resources, and deployment entry
+   points.
+2. Check that `package.json` and lockfiles, or the project's version files,
+   agree with the README, CHANGELOG, Release Notes, and tag.
+3. Build the final artifacts from a clean state. Scan both the artifact
+   directories and final archives; do not scan only the source tree.
+4. Check for secrets, personal or customer data, internal business or legal
+   material, private model or service configuration, and files that do not need
+   to be public.
+5. For vendored code, models, WASM, fonts, and media, verify the source,
+   version or commit, license, redistribution terms, and SHA-256 individually.
+   The license inventory must match the final resources.
+6. After deployment, check HTTPS, HTTP status, key static entry points, CSP,
+   HSTS, X-Frame-Options, and other project-required response headers.
+7. Before creating a GitHub Release, verify the tag, Release page, and every
+   attachment. Attachments must come from scanned final artifacts; calculate
+   and record their SHA-256 values.
+8. When database migrations, edge functions, or external configuration are
+   involved, confirm production state separately. Passing CI does not prove
+   that a production migration ran.
 
-## 复用方式
+## Reuse project checks
 
-优先复用项目已有的 `release:check`。没有时，在项目根目录建立 `release-gate.config.json`，至少声明：
+Prefer the project's existing `release:check`. If none exists, create
+`release-gate.config.json` in the project root with at least:
 
 ```json
 {
@@ -63,37 +92,56 @@ Skipped checks / residual risks:
 }
 ```
 
-以上是跨项目约定样例，不是自动校验的通用 schema；项目应由自己的 `release:check` 负责校验实际字段和路径。
+This is a cross-project convention example, not a universal validation
+schema. The project's own `release:check` must validate its actual fields and
+paths.
 
-项目专属内容放配置中，例如 Supabase 迁移、Vercel 生产地址、Piper 资源和特定响应头；不要把一个项目的假设复制到其他项目。
+Keep project-specific details in the configuration, such as Supabase
+migrations, a Vercel production URL, Piper resources, and required headers.
+Do not copy one project's assumptions into another.
 
-推荐提供以下命令或等价入口：
+Prefer to provide these commands or equivalent entry points:
 
 ```text
-npm run verify          # 源码、测试和构建
-npm run release:check   # Release 元数据、产物、许可证和部署检查
+npm run verify          # Source, tests, and build
+npm run release:check   # Release metadata, artifacts, licenses, and deployment checks
 ```
 
-没有自动化入口时，仍执行同样的检查并在 PR/Release Notes 留下证据。任何检查失败都停止发布，不要先创建 Release 再解释。
+When no automated entry point exists, perform the same checks manually and
+record the evidence in the PR or Release Notes. Stop the release on any failed
+check; do not create the Release first and explain afterward.
 
-## 失败、阻塞与恢复
+## Failure, blocking, and recovery
 
-1. 发现密钥、个人数据、内部资料、许可证缺失或产物不一致时，停止发布并记录精确路径、附件或检查项。
-2. 遇到无法访问的生产地址、GitHub Release 权限、部署状态或外部配置时，标记为 `BLOCKED`，不要用本地构建成功替代外部证据。
-3. 修复后从失败的检查项重新执行，并重新核对受影响的版本、产物哈希和附件；不要直接沿用旧的 `PASS` 记录。
-4. 任何已暴露的密钥或个人数据按安全事件处理，轮换凭据并保留事件记录；仅删除文件或改写历史不足以证明风险已经消失。
+1. If you find a secret, personal data, internal material, a missing license,
+   or an artifact mismatch, stop the release and record the exact path,
+   attachment, or check item.
+2. If the production URL, GitHub Release permission, deployment state, or
+   external configuration is unavailable, mark the gate `BLOCKED`. Do not use
+   a successful local build as a substitute for external evidence.
+3. After a fix, rerun the failed check and recheck affected versions, artifact
+   hashes, and attachments. Do not reuse an old `PASS` record unchanged.
+4. Treat exposed secrets or personal data as a security incident, rotate the
+   credentials, and retain an incident record. Merely deleting a file or
+   rewriting history does not prove that the risk is gone.
 
-## 平台边界
+## Platform boundaries
 
-版本、构建、产物和许可证检查适用于不同语言和构建系统，但具体命令必须以项目配置为准。GitHub Release、HTTP 响应头和生产部署检查依赖对应托管平台；不能把未测试的平台 CLI、Preview 环境或本地服务器结果描述为生产验证。
+Version, build, artifact, and license checks apply across languages and build
+systems, but use the commands defined by the project. GitHub Release, HTTP
+header, and production-deployment checks depend on the relevant hosting
+platform. Do not describe an untested platform CLI, Preview environment, or
+local server result as production verification.
 
-## 触发词
+## Trigger phrases
 
-将以下请求视为完整触发：
+Treat the following requests as full triggers:
 
-- “按全局公开仓库防线检查本次 Release”
-- “检查这个 Tag 能不能发布”
-- “审核最终安装包/压缩包和 GitHub Release”
-- “上线后验收这个版本”
+- "Check this Release against the complete public-repository gate."
+- "Can this tag be released?"
+- "Review the final installer/archive and GitHub Release."
+- "Verify this version after launch."
 
-普通“检查提交”只覆盖 commit/PR 闸门；用户提到 Release、Tag、安装包、商店包、部署或上线时，必须升级为本技能的完整流程。
+An ordinary request to "check a commit" covers only the commit/PR gate. When
+the user mentions a Release, tag, installer, store package, deployment, or
+launch, use this skill's complete workflow.

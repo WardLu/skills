@@ -1,0 +1,4 @@
+interface:
+  display_name: "GitHub Repository i18n"
+  short_description: "Synchronize repository docs and metadata across locales"
+  default_prompt: "Use $github-repo-i18n to confirm the exact documentation and metadata scope, identify existing locales, preserve non-English README content, and show local plus GitHub-style Markdown previews before finalizing."

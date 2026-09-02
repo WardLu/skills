@@ -7,7 +7,7 @@
 [![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [Issues](https://github.com/WardLu/skills/issues)
+[English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
 
 </div>
 
@@ -17,23 +17,44 @@
 
 这是一个面向 AI agent 和开发者工作流的自包含 Skill 集合。每个 Skill 都位于独立的 kebab-case 目录中，并包含自己的 `SKILL.md`；脚本、测试、references、文档、许可证和版本元数据按需要加入。不同 Skill 可以只支持某一个 agent，也可以跨多个 agent 使用；具体兼容性请以各 Skill 的 `SKILL.md` 和直接引用的资源为准。
 
-当前集合包含一个 Codex 会话修复 Skill、公开仓库/Release 闸门，以及一个跨框架的测试范围路由 Skill。
+当前集合包含 Codex 工作流 Skill、GitHub 仓库国际化 Skill、公开仓库/Release 闸门，以及一个跨框架的测试范围路由 Skill。
 
 | Skill | 用途 | 版本 | 文档 |
 | --- | --- | --- | --- |
 | [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | 在不删除 Codex 目录的前提下，诊断并修复供应商不一致，以及远程上下文压缩出现 `404 Item with id 'rs_...' not found` 的问题。 | `0.7.5` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
-| [`public-release-gate`](public-release-gate/) | 审核公开仓库的 Release、最终产物、第三方许可证、部署响应头和 GitHub Release 附件。 | `0.1.0` | [SKILL.md](public-release-gate/SKILL.md) |
-| [`public-repo-git-gate`](public-repo-git-gate/) | 覆盖 commit、push 和 Pull Request 的公开内容、分支、远程仓库和 PR 状态检查。 | `0.1.0` | [SKILL.md](public-repo-git-gate/SKILL.md) |
-| [`test-scope-routing`](test-scope-routing/) | 根据改动风险和受影响边界选择验证范围，避免默认运行全量测试。 | `0.1.0` | [SKILL.md](test-scope-routing/SKILL.md) |
+| [`codex-doctor`](codex-doctor/) | 分析本地 Codex 会话 telemetry，并生成隐私安全的效率改进建议。 | `0.1.1` | [SKILL.md](codex-doctor/SKILL.md) |
+| [`github-repo-i18n`](github-repo-i18n/) | 在英文默认入口和用户指定语言之间同步 GitHub 仓库文档、描述与 Topics，并提供 parity 检查和 Markdown 预览。 | `0.1.0` | [SKILL.md](github-repo-i18n/SKILL.md) |
+| [`public-release-gate`](public-release-gate/) | 审核公开仓库的 Release、最终产物、第三方许可证、部署响应头和 GitHub Release 附件。 | `0.1.1` | [SKILL.md](public-release-gate/SKILL.md) |
+| [`public-repo-git-gate`](public-repo-git-gate/) | 覆盖 commit、push 和 Pull Request 的公开内容、分支、远程仓库和 PR 状态检查。 | `0.1.1` | [SKILL.md](public-repo-git-gate/SKILL.md) |
+| [`test-scope-routing`](test-scope-routing/) | 根据改动风险和受影响边界选择验证范围，避免默认运行全量测试。 | `0.1.1` | [SKILL.md](test-scope-routing/SKILL.md) |
 
 ## 安装
 
 ### 推荐使用 `npx skills`
 
-为受支持的 agent 全局安装 Skill。下面以当前这个 Codex 专用 Skill 为例：
+每个 Skill 目录只要包含有效的 `SKILL.md` 就可以安装；Skill 根目录的
+`README.md` 是可选的人类说明文档，不是 CLI 的安装要求。为受支持的 agent
+全局安装指定 Skill（下面以 `codex-doctor` 为例）：
 
 ~~~bash
-npx skills add WardLu/skills --skill codex-cross-provider-session-repair --global --agent codex --yes
+npx skills add WardLu/skills --skill codex-doctor --global --agent codex --yes
+~~~
+
+将 `codex-doctor` 替换为下面任意一个 Skill 名称：
+
+~~~text
+codex-cross-provider-session-repair
+codex-doctor
+github-repo-i18n
+public-release-gate
+public-repo-git-gate
+test-scope-routing
+~~~
+
+为 Codex 安装整个集合：
+
+~~~bash
+npx skills add WardLu/skills --skill '*' --global --agent codex --yes
 ~~~
 
 安装命令适用于 Windows、macOS 和 Linux，但需要先安装 Node.js/npm。`skills` CLI 会安装选定的 `SKILL.md`，并可继续使用同一工具管理：
@@ -44,7 +65,7 @@ npx skills update codex-cross-provider-session-repair
 npx skills remove codex-cross-provider-session-repair
 ~~~
 
-省略 `--skill` 可以安装整个集合；安装其他 Skill 时替换 Skill 名称；安装到其他受支持的 agent 时替换 `--agent codex`。仓库合并到 `main` 后，`WardLu/skills` 命令才能解析新 Skill。
+安装到其他受支持的 agent 时替换 `--agent codex`。仓库合并到 `main` 后，`WardLu/skills` 命令才能解析新 Skill。
 
 ### 当前 Codex Skill 的手动安装
 
@@ -95,6 +116,7 @@ cd skills/codex-cross-provider-session-repair
 ~~~text
 .
 ├── .github/workflows/validate-skills.yml
+├── CHANGELOG.md
 ├── codex-cross-provider-session-repair/
 │   ├── SKILL.md
 │   ├── README.md
@@ -107,6 +129,17 @@ cd skills/codex-cross-provider-session-repair
 │   ├── CONTRIBUTING.md
 │   ├── SECURITY.md
 │   └── LICENSE
+├── codex-doctor/
+│   ├── SKILL.md
+│   ├── agents/
+│   └── VERSION
+├── github-repo-i18n/
+│   ├── SKILL.md
+│   ├── agents/
+│   ├── references/
+│   ├── scripts/
+│   ├── tests/
+│   └── VERSION
 ├── public-release-gate/
 │   ├── SKILL.md
 │   ├── agents/

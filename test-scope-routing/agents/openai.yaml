@@ -1,4 +1,4 @@
 interface:
   display_name: "Test Scope Routing"
-  short_description: "按改动风险选择最小充分测试范围，减少无意义全量验证"
+  short_description: "Select the smallest sufficient validation scope by change risk"
   default_prompt: "Use $test-scope-routing to select and document the smallest sufficient validation scope for this change."

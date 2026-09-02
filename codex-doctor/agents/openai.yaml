@@ -1,0 +1,7 @@
+interface:
+  display_name: "Codex Doctor"
+  short_description: "Analyze local Codex sessions and provide efficiency recommendations"
+  default_prompt: "Use $codex-doctor to analyze recent Codex sessions and provide up to three evidence-backed workflow improvements."
+
+policy:
+  allow_implicit_invocation: true
