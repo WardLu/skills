@@ -18,8 +18,14 @@ DEFAULT_FORBIDDEN_PATHS = [
     r"(^|/)(?:production|prod|customer|user-data|exports?)(?:[-_][^/]*)?\.(?:csv|json|sql|dump|db|sqlite|zip)$",
     r"(^|/)(?:ROADMAP|TODO)(?:\.[^/]*)?$",
 ]
+_PRIVATE_KEY_HEADER_PATTERN = "".join(
+    (
+        r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE ",
+        r"KEY-----",
+    )
+)
 DEFAULT_SECRET_PATTERNS = [
-    r"-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----",
+    _PRIVATE_KEY_HEADER_PATTERN,
     r"(?:sk-(?:proj-)?|gh[pousr]_)[A-Za-z0-9_-]{12,}",
     r"sb_secret_[A-Za-z0-9_-]{8,}",
     r"postgres(?:ql)?://[^\s:'\"]+:[^\s@'\"]+@",

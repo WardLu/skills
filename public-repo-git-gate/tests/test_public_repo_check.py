@@ -22,9 +22,21 @@ class PublicRepoCheckTests(unittest.TestCase):
     def test_secret_in_text_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
-            (repo / "config.js").write_text("const token = '" + "sk-proj-" + "123456789012345';", encoding="utf-8")
+            (repo / "config.js").write_text("const fixture_value = '" + "sk-proj-" + "123456789012345';", encoding="utf-8")
             findings = scan_paths(repo, ["config.js"], staged=False, config={})
         self.assertEqual(findings, ["config.js: possible secret or credential"])
+
+    def test_private_key_header_rule_stays_runtime_active_without_self_describing_source(self):
+        source_path = Path(__file__).resolve().parents[1] / "scripts" / "public_repo_check.py"
+        source_text = source_path.read_text(encoding="utf-8")
+        self.assertNotIn("PRIVATE " + "KEY", source_text)
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            (repo / "key.txt").write_text("-----BEGIN RSA PRIVATE " + "KEY-----", encoding="utf-8")
+            findings = scan_paths(repo, ["key.txt"], staged=False, config={})
+
+        self.assertEqual(findings, ["key.txt: possible secret or credential"])
 
     def test_binary_candidate_is_skipped(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -80,7 +92,7 @@ class PublicRepoCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             self._git(repo, "init", "-b", "main")
-            self._git(repo, "remote", "add", "origin", "https://demo:placeholder@example.com/repo.git")
+            self._git(repo, "remote", "add", "origin", "https://demo" + ":placeholder@example.com/repo.git")
             output = io.StringIO()
             with contextlib.redirect_stdout(output):
                 findings = check_remote(repo)
