@@ -21,6 +21,34 @@ uploading attachments, changing production configuration, or deploying each
 requires explicit user authorization. Passing this gate does not authorize
 any of those actions.
 
+## Fixed human-readable entry
+
+Every independently releasable project must maintain
+`docs/release-checklist.md` at the project root and use it as the single
+human-readable entry for that Release. In a monorepo, each independently
+released target keeps the file relative to its own project root; a different
+repository-level note does not replace it.
+
+The checklist records the release scope, ordered checks, status, and evidence
+links. It is a human-readable receipt, not a Release Manifest, state machine,
+controller, or cross-project database. Project-specific commands, migration
+details, Functions, CDN checks, and Release Watcher results remain in the
+project's existing documentation, scripts, CI, or watcher; the checklist
+links to or summarizes that evidence.
+
+Each checklist item must use exactly one of these statuses and the required
+explanation:
+
+- `completed`: executed, with inspectable evidence.
+- `N/A`: not applicable, with a concrete reason.
+- `blocked`: cannot be completed, with the blocker and next action or owner.
+
+Do not use `pending`, `skipped`, `passed`, `failed`, or an empty checkbox as a
+status. Any `blocked` item keeps the Release gate `BLOCKED`. `PASS` requires
+every applicable item to be `completed` and every non-applicable item to have
+a reason. Evidence must not contain tokens, personal data, backups, or
+private logs.
+
 ## Inputs and output
 
 Before starting, identify the repository root, target version and tag, final
@@ -49,27 +77,44 @@ GitHub Release, or continuing deployment.
 
 ## Workflow
 
-1. Identify repository visibility, technology stack, build commands, artifact
+1. Open `docs/release-checklist.md` and record the project, version/tag, final
+   SHA, evidence index, and release mode: `code_only`, `migration_only`,
+   `release_only`, or `full_release`.
+2. Identify repository visibility, technology stack, build commands, artifact
    directories, version sources, third-party resources, and deployment entry
-   points.
-2. Check that `package.json` and lockfiles, or the project's version files,
+   points; record the scope inputs in the checklist.
+3. Check that `package.json` and lockfiles, or the project's version files,
    agree with the README, CHANGELOG, Release Notes, and tag.
-3. Build the final artifacts from a clean state. Scan both the artifact
+4. Build the final artifacts from a clean state. Scan both the artifact
    directories and final archives; do not scan only the source tree.
-4. Check for secrets, personal or customer data, internal business or legal
+5. Check for secrets, personal or customer data, internal business or legal
    material, private model or service configuration, and files that do not need
    to be public.
-5. For vendored code, models, WASM, fonts, and media, verify the source,
+6. For vendored code, models, WASM, fonts, and media, verify the source,
    version or commit, license, redistribution terms, and SHA-256 individually.
    The license inventory must match the final resources.
-6. After deployment, check HTTPS, HTTP status, key static entry points, CSP,
-   HSTS, X-Frame-Options, and other project-required response headers.
-7. Before creating a GitHub Release, verify the tag, Release page, and every
-   attachment. Attachments must come from scanned final artifacts; calculate
-   and record their SHA-256 values.
-8. When database migrations, edge functions, or external configuration are
-   involved, confirm production state separately. Passing CI does not prove
-   that a production migration ran.
+7. When database migrations, edge functions, or data repair are involved,
+   separately record migration order, applied state, schema/functions/RLS,
+   business smoke, Function version, and repair results. CI does not prove
+   production state.
+8. When environment configuration, CDN, Service Worker, or cache behavior is
+   involved, record the authorized environment and each relevant verification;
+   Preview is not Production evidence.
+9. After Preview deployment, record the exact deployment URL, commit SHA,
+   critical journeys, and results. After Production deployment, separately
+   check HTTPS, HTTP status, key static entry points, CSP, HSTS, X-Frame-
+   Options, and other project-required response headers.
+10. Before creating a GitHub Release, verify the tag, Release page, and every
+    attachment. Attachments must come from scanned final artifacts; calculate
+    and record their SHA-256 values.
+11. Record the rollback target, trigger conditions, owner, exact recovery
+    procedure, and recovery evidence. Finalize every item as `completed`,
+    reasoned `N/A`, or reasoned `blocked`.
+
+Prefer existing `release:check`, project CI, and Release Watcher results and
+link or summarize them in the checklist. If no automation exists, perform the
+same checks manually and record the evidence; do not create a generic
+controller or state store.
 
 ## Reuse project checks
 
@@ -108,8 +153,9 @@ npm run release:check   # Release metadata, artifacts, licenses, and deployment 
 ```
 
 When no automated entry point exists, perform the same checks manually and
-record the evidence in the PR or Release Notes. Stop the release on any failed
-check; do not create the Release first and explain afterward.
+record the evidence in `docs/release-checklist.md`; PRs and Release Notes may
+cross-link that receipt. Stop the release on any failed check; do not create
+the Release first and explain afterward.
 
 ## Failure, blocking, and recovery
 

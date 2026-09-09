@@ -14,6 +14,8 @@ state instead of treating a passing commit or CI job as release approval.
 - final build artifacts and archives;
 - secrets, personal data, internal material, and third-party licenses;
 - deployment response headers, production state, and release attachments.
+- the fixed `docs/release-checklist.md` receipt, where every item is
+  `completed`, reasoned `N/A`, or reasoned `blocked` with a next action.
 
 ## Use it
 
@@ -29,6 +31,11 @@ production URL. For example:
 ```text
 Audit release v1.2.3, its final archive, and the deployed URL before publication.
 ```
+
+Each independently releasable project keeps the human-readable receipt at
+`docs/release-checklist.md`. Existing project checks, CI, and Release Watcher
+results should be linked from that file instead of copied into a new release
+controller or state store.
 
 ## Results and boundaries
 

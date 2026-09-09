@@ -3,6 +3,8 @@
 All released collection-level changes are documented here. Individual skills
 may keep a more detailed changelog in their own directory.
 
+[English](CHANGELOG.md) · [简体中文](CHANGELOG.zh-CN.md)
+
 ## [0.3.0] - 2026-09-09
 
 ### Added
