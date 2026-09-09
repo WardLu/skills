@@ -18,7 +18,7 @@ _MAX_MEMBER_BYTES = 10 * 1024 * 1024
 _MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
 _SECRET = re.compile(r"(?:-----BEGIN .*PRIVATE KEY-----|(?:token|api[_-]?key|secret|password)\s*[:=]|\bgh[pousr]_)", re.I)
 _PRIVATE_PATH = re.compile(r"(?:/(?:Users|home)/[^/\s]+|[A-Za-z]:[\\/]Users[\\/][^\\/\s]+)", re.I)
-_ALLOWED_ROOTS = {"SKILL.md", "LICENSE", "VERSION"}
+_ALLOWED_ROOTS = {"SKILL.md", "LICENSE", "VERSION", "_skillhub_meta.json"}
 _ALLOWED_DIRS = {"scripts", "references", "assets", "templates"}
 _EXCLUDED_NAMES = {"README.md", "README.txt", "CHANGELOG.md", "RELEASE_NOTES.md"}
 _EXCLUDED_COMPONENTS = {"private", "internal", "tests", "__pycache__"}
@@ -49,11 +49,11 @@ def build_artifact(
         _validate_member_name(name)
         if not isinstance(payload, bytes):
             raise TypeError(f"staging file {name!r} must contain bytes")
-        if channel == "workbuddy" and not name.startswith(f"skills/{snapshot.name}/"):
-            if name != "LICENSE":
+        if channel == "workbuddy" and not name.startswith(f"{snapshot.name}/"):
+            if name not in {"LICENSE", "_skillhub_meta.json"}:
                 raise ValueError("workbuddy_package_path_invalid")
         if not _is_allowed(name, channel=channel, snapshot_name=snapshot.name):
-            if channel == "workbuddy" and name.startswith("skills/"):
+            if channel == "workbuddy" and name.startswith(f"{snapshot.name}/"):
                 raise ValueError("workbuddy_package_path_invalid")
         else:
             files[name] = payload
@@ -62,7 +62,7 @@ def build_artifact(
     if "LICENSE" in files and files["LICENSE"] != license_bytes:
         raise ValueError("license_mismatch")
     files["LICENSE"] = license_bytes
-    required_skill_path = f"skills/{snapshot.name}/SKILL.md" if channel == "workbuddy" else "SKILL.md"
+    required_skill_path = f"{snapshot.name}/SKILL.md" if channel == "workbuddy" else "SKILL.md"
     if required_skill_path not in files:
         raise ValueError("missing_skill_md")
 
@@ -203,7 +203,7 @@ def _is_allowed(
         return True
     prefix = package_prefix
     if channel == "workbuddy" and snapshot_name:
-        prefix = f"skills/{snapshot_name}/"
+        prefix = f"{snapshot_name}/"
     if not prefix or not name.startswith(prefix) or len(name) <= len(prefix):
         return False
     nested = name[len(prefix):]
@@ -234,9 +234,9 @@ def _is_excluded_document(part: str) -> bool:
 
 def _workbuddy_prefix(expected_files: Sequence[str]) -> Optional[str]:
     prefixes = {
-        f"skills/{PurePosixPath(name).parts[1]}/"
+        f"{PurePosixPath(name).parts[0]}/"
         for name in expected_files
-        if len(PurePosixPath(name).parts) >= 3 and PurePosixPath(name).parts[0] == "skills"
+        if len(PurePosixPath(name).parts) >= 2 and PurePosixPath(name).parts[0] != "LICENSE"
     }
     return prefixes.pop() if len(prefixes) == 1 else None
 

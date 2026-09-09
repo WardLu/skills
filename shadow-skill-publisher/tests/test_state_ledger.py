@@ -416,7 +416,7 @@ class LedgerTests(unittest.TestCase):
     def test_save_submission_plan_rejects_artifact_channel_mismatch(self):
         attempt = self.ledger.create_attempt(self.snapshot, "workbuddy", "primary", "2026-09-03", self.artifact)
         wrong_artifact = Artifact(
-            channel="lovstudio",
+            channel="skillpay",
             path=self.artifact.path,
             sha256=self.artifact.sha256,
             size_bytes=self.artifact.size_bytes,

@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-from .lovstudio import LovStudioAdapter
 from .skillpay import SkillPayAdapter
 from .workbuddy import WorkBuddyAdapter
 from .xiaohongshu_red_skill import XiaohongshuRedSkillAdapter
 from .zhihu_ai_works import ZhihuAiWorksAdapter
 
 CHANNEL_KEYS = (
-    "lovstudio",
     "workbuddy",
     "skillpay",
     "zhihu-ai-works",
@@ -17,7 +15,6 @@ CHANNEL_KEYS = (
 )
 
 CHANNEL_REGISTRY = {
-    "lovstudio": LovStudioAdapter(),
     "workbuddy": WorkBuddyAdapter(),
     "skillpay": SkillPayAdapter(),
     "zhihu-ai-works": ZhihuAiWorksAdapter(contract=None),

@@ -258,13 +258,13 @@ class LocalWorkflowTests(unittest.TestCase):
             {
                 "channel_edits": {
                     "workbuddy": {"description": "Safe copy that must not be written first."},
-                    "lovstudio": {"concise_description": sensitive_copy},
+                    "skillpay": {"description": sensitive_copy},
                 }
             },
         )
 
         result = run_cli(
-            ["prepare", str(self.skill), "--channels", "workbuddy,lovstudio", "--home", str(self.home), "--json"]
+            ["prepare", str(self.skill), "--channels", "workbuddy,skillpay", "--home", str(self.home), "--json"]
         )
 
         self.assertEqual(result.exit_code, 2, result.stderr or result.stdout)
@@ -482,14 +482,16 @@ class LocalWorkflowTests(unittest.TestCase):
                     "enabled": True,
                     "observed_fields": {
                         "name": "workbuddy-fixture",
+                        "display_name": "Workbuddy Fixture",
+                        "display_name_en": "Workbuddy Fixture",
                         "description": "tampered description",
                         "description_zh": "简短中文介绍",
                         "description_en": "A brief English introduction.",
                         "version": "1.0.0",
                         "author": "Fixture Publisher",
                         "allowed-tools": "Bash, Read",
-                        "package_root": "skills/workbuddy-fixture",
-                        "skill_path": "skills/workbuddy-fixture/SKILL.md",
+                        "package_root": "workbuddy-fixture",
+                        "skill_path": "workbuddy-fixture/SKILL.md",
                         "resource_directories": "references",
                     },
                     "final_action": "submit_review",
@@ -989,7 +991,7 @@ class LocalWorkflowTests(unittest.TestCase):
         self.home = make_home(
             self.base,
             {
-                "accounts": {"workbuddy": "primary", "lovstudio": "studio-primary"},
+                "accounts": {"workbuddy": "primary", "xiaohongshu-red-skill": "red-primary"},
                 "source_url": "https://example.test/skills/workbuddy-fixture",
             },
         )
@@ -998,7 +1000,7 @@ class LocalWorkflowTests(unittest.TestCase):
                 "prepare",
                 str(self.skill),
                 "--channels",
-                "workbuddy,lovstudio",
+                "workbuddy,xiaohongshu-red-skill",
                 "--home",
                 str(self.home),
                 "--json",
@@ -1007,7 +1009,7 @@ class LocalWorkflowTests(unittest.TestCase):
         self.assertEqual(prepared.exit_code, 0, prepared.stderr or prepared.stdout)
         attempts = {item["channel"]: item for item in json.loads(prepared.stdout)["attempts"]}
         workbuddy_id = attempts["workbuddy"]["run_id"]
-        lovstudio_id = attempts["lovstudio"]["run_id"]
+        red_skill_id = attempts["xiaohongshu-red-skill"]["run_id"]
         drift = self.record_event(
             workbuddy_id,
             "remote_drift",
@@ -1034,14 +1036,14 @@ class LocalWorkflowTests(unittest.TestCase):
         authorized = run_cli(
             [
                 "authorize",
-                lovstudio_id,
-                "lovstudio",
+                red_skill_id,
+                "xiaohongshu-red-skill",
                 "--home",
                 str(self.home),
                 "--kind",
                 "upload",
                 "--digest",
-                attempts["lovstudio"]["plan"]["upload_confirmation_digest"],
+                attempts["xiaohongshu-red-skill"]["plan"]["upload_confirmation_digest"],
                 "--json",
             ]
         )

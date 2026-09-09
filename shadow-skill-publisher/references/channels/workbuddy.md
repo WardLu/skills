@@ -40,10 +40,10 @@ skills/
     └── templates/
 ```
 
-The adapter stages a WorkBuddy package view rooted at `skills/<skill-name>/`,
-with `skills/<skill-name>/SKILL.md` as the canonical staged definition path.
+The adapter stages a WorkBuddy package view rooted at `<skill-name>/`,
+with `<skill-name>/SKILL.md` as the canonical staged definition path.
 
-The final ZIP contains that single `skills/<skill-name>/` runtime tree. It does not duplicate `SKILL.md`, `references/`, `scripts/`, or `templates/` at the ZIP root. A root `LICENSE` may remain so the distributed package carries the applicable license text.
+The final ZIP contains that single `<skill-name>/` runtime tree. It does not duplicate `SKILL.md`, `references/`, `scripts/`, or `templates/` at the ZIP root. A root `LICENSE` may remain so the distributed package carries the applicable license text.
 
 ## Frontmatter contract
 
@@ -52,6 +52,8 @@ The official page documents these WorkBuddy Skill frontmatter fields:
 - `description` (required)
 - `description_zh` (required)
 - `description_en` (required)
+- `display_name` (required)
+- `display_name_en` (required)
 - `version` (required)
 - `author` (required)
 - `allowed-tools` (optional, comma-separated)
@@ -63,6 +65,8 @@ The adapter preserves the source Markdown body and injects only WorkBuddy
 metadata into staging. The staged frontmatter must include:
 
 - frozen `name`
+- derived or verified `display_name`
+- derived or verified `display_name_en`
 - frozen `description`
 - verified `description_zh`
 - verified `description_en`
@@ -75,6 +79,16 @@ metadata into staging. The staged frontmatter must include:
   - `workbuddy-resource-directories`
 
 The adapter does not rewrite the source repository copy of `SKILL.md`.
+
+The official documentation does not define a frontmatter field for the
+marketplace's `试试这样问我` quick prompts. WorkBuddy's installed marketplace
+packages use a separate root `_skillhub_meta.json` with `examples_zh` and
+`examples_en` arrays; the adapter emits those fields when the private profile
+provides them. A live Create Skill contract check on 2026-09-09 showed that the
+upload parser does not expose this metadata in the draft preview, so a preview
+value of `-` is not proof that the eventual marketplace metadata was omitted.
+Keep upload parsing, review submission, and marketplace visibility as separate
+evidence gates.
 
 ## Resource-directory rule
 
@@ -98,7 +112,7 @@ for WorkBuddy; future UI status strings are unverified until documented.
 If automation cannot trust the WorkBuddy package or the platform flow drifts:
 
 1. Upload the exact artifact ZIP for the target attempt with the intended WorkBuddy account alias through `Add Skill -> Create Skill`.
-2. If parsing fails, inspect the ZIP and verify that `skills/<skill-name>/SKILL.md` exists and that its staged frontmatter still contains the documented fields.
+2. If parsing fails, inspect the ZIP and verify that `<skill-name>/SKILL.md` exists at the package root and that its staged frontmatter still contains the documented fields.
 3. Record separate evidence for `zip_parsed`, `review_submitted`, `approved`, `marketplace_visible`, and `installed_in_conversation`, including the exact observed page text or error text for each state.
 
 The fallback is intentionally specific; “upload manually” alone is not sufficient evidence.

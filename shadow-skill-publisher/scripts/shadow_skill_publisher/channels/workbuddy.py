@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import json
 from pathlib import Path, PurePosixPath
 from typing import Mapping
 
@@ -19,6 +20,8 @@ _MANUAL_STATES = (
 )
 _FRONTMATTER_FIELDS = (
     "name",
+    "display_name",
+    "display_name_en",
     "description",
     "description_zh",
     "description_en",
@@ -29,6 +32,8 @@ _FRONTMATTER_FIELDS = (
     "workbuddy-skill-path",
     "workbuddy-resource-directories",
 )
+_MARKET_METADATA_FIELDS = ("examples_zh", "examples_en")
+_MARKET_METADATA_NAME = "_skillhub_meta.json"
 
 
 class WorkBuddyAdapter(BaseChannelAdapter):
@@ -37,6 +42,8 @@ class WorkBuddyAdapter(BaseChannelAdapter):
     official_source_urls = ("https://open.workbuddy.cn/en/docs/skill",)
     required_fields = (
         "name",
+        "display_name",
+        "display_name_en",
         "description",
         "description_zh",
         "description_en",
@@ -47,6 +54,7 @@ class WorkBuddyAdapter(BaseChannelAdapter):
         "skill_path",
         "resource_directories",
     )
+    optional_fields = _MARKET_METADATA_FIELDS
     allowed_commercial_modes = ("free", "one_time")
     state_mappings = {}
     public_verification_signals = (
@@ -75,8 +83,9 @@ class WorkBuddyAdapter(BaseChannelAdapter):
         exact_states = ", ".join(_MANUAL_STATES)
         manual_fallback = (
             "In WorkBuddy Open Platform, sign in with account alias `{0}`, choose `Add Skill -> Create Skill`, and upload `{1}`. "
-            "If ZIP parsing fails, unzip the artifact and verify `{2}` exists and its frontmatter still contains `{3}`."
-            .format(account_alias, Path(artifact.path).name, staging.fields["skill_path"], exact_fields),
+            "If ZIP parsing fails, unzip the artifact and verify `{2}` exists and its frontmatter still contains `{3}`. "
+            "When provided, market quick prompts are stored separately in `{4}` as `examples_zh`/`examples_en`; they may not appear in the upload preview."
+            .format(account_alias, Path(artifact.path).name, staging.fields["skill_path"], exact_fields, _MARKET_METADATA_NAME),
             "After the manual path, report these exact states for the same artifact as separate evidence: `{0}`."
             .format(exact_states),
         )
@@ -87,6 +96,7 @@ class WorkBuddyAdapter(BaseChannelAdapter):
         package_root = self._package_root(snapshot)
         files: dict[str, bytes] = {
             "{0}/SKILL.md".format(package_root): staged_skill_md,
+            _MARKET_METADATA_NAME: self._render_market_metadata(snapshot, dossier),
         }
         for relative in snapshot.files:
             parts = PurePosixPath(relative).parts
@@ -100,9 +110,13 @@ class WorkBuddyAdapter(BaseChannelAdapter):
         resource_directories = ", ".join(self._resource_directories(snapshot))
         return {
             "name": snapshot.name,
+            "display_name": self._display_name(snapshot, dossier, source_fields, "display_name"),
+            "display_name_en": self._display_name(snapshot, dossier, source_fields, "display_name_en"),
             "description": snapshot.description,
             "description_zh": self._required_text(snapshot, dossier, source_fields, "description_zh"),
             "description_en": self._required_text(snapshot, dossier, source_fields, "description_en"),
+            "examples_zh": "\n".join(self._examples(dossier, "examples_zh")),
+            "examples_en": "\n".join(self._examples(dossier, "examples_en")),
             "version": snapshot.version,
             "author": self._required_text(snapshot, dossier, source_fields, "author"),
             "allowed-tools": self._allowed_tools(snapshot, dossier, source_fields),
@@ -116,6 +130,8 @@ class WorkBuddyAdapter(BaseChannelAdapter):
         staged_fields = self.render_fields(snapshot, dossier)
         for key, value in (
             ("name", staged_fields["name"]),
+            ("display_name", staged_fields["display_name"]),
+            ("display_name_en", staged_fields["display_name_en"]),
             ("description", staged_fields["description"]),
             ("description_zh", staged_fields["description_zh"]),
             ("description_en", staged_fields["description_en"]),
@@ -128,6 +144,38 @@ class WorkBuddyAdapter(BaseChannelAdapter):
         ):
             source_fields = self._upsert_scalar(source_fields, key, value)
         return "---\n{0}---\n{1}".format("".join(source_fields), body)
+
+    def _render_market_metadata(self, snapshot: SourceSnapshot, dossier: Dossier) -> bytes:
+        """Render SkillHub marketplace metadata without local install state."""
+
+        source_fields, _ = self._split_skill_md(snapshot.skill_md_text)
+        payload: dict[str, object] = {
+            "name": self._display_name(snapshot, dossier, source_fields, "display_name"),
+            "skillName": snapshot.name,
+            "version": snapshot.version,
+            "source": "local",
+        }
+        for key in _MARKET_METADATA_FIELDS:
+            values = self._examples(dossier, key)
+            if values:
+                payload[key] = list(values)
+        return (json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n").encode("utf-8")
+
+    def _display_name(
+        self,
+        snapshot: SourceSnapshot,
+        dossier: Dossier,
+        source_fields: list[str],
+        key: str,
+    ) -> str:
+        candidate = self._lookup_scalar(source_fields, key)
+        if candidate:
+            return candidate
+        value = dossier.facts.get(key)
+        if value is not None and str(value).strip():
+            return str(value).strip()
+        parts = [part for part in snapshot.name.replace("_", "-").split("-") if part]
+        return " ".join(part[:1].upper() + part[1:] for part in parts) or snapshot.name
 
     def _required_text(
         self,
@@ -178,6 +226,13 @@ class WorkBuddyAdapter(BaseChannelAdapter):
             self.manual_fallback,
         )
 
+    def _examples(self, dossier: Dossier, key: str) -> tuple[str, ...]:
+        raw = dossier.facts.get(key, ())
+        if isinstance(raw, (tuple, list, set, frozenset)):
+            return tuple(str(item).strip() for item in raw if str(item).strip())
+        text = str(raw).strip() if raw is not None else ""
+        return (text,) if text else ()
+
     def _resource_directories(self, snapshot: SourceSnapshot) -> tuple[str, ...]:
         present = []
         for directory in _TOP_LEVEL_RESOURCE_DIRS:
@@ -187,7 +242,7 @@ class WorkBuddyAdapter(BaseChannelAdapter):
         return tuple(present)
 
     def _package_root(self, snapshot: SourceSnapshot) -> str:
-        return "skills/{0}".format(snapshot.name)
+        return snapshot.name
 
     def _split_skill_md(self, text: str) -> tuple[list[str], str]:
         lines = text.splitlines(keepends=True)

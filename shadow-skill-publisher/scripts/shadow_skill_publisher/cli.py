@@ -44,14 +44,14 @@ from .profile_builder import (
     STORED_PROFILE_ORIGIN,
     apply_source_defaults,
     build_generated_profile,
-    missing_generated_profile_inputs,
+    missing_profile_inputs,
 )
 from .quality import run_quality
 from .redaction import redact_text
 from .source import SourceContractError, SourceSnapshot, load_source
 
 
-VERSION = "0.2.0"
+VERSION = "0.3.0"
 COMMANDS = ("check", "prepare", "finalize", "authorize", "record", "status", "export")
 
 _BLOCK_EXIT = 1
@@ -268,27 +268,20 @@ def _handle_prepare(args: argparse.Namespace) -> int:
             return _BLOCK_EXIT
 
         selected_channels = _normalize_channels(args.channels)
-        missing_inputs = (
-            missing_generated_profile_inputs(profile, selected_channels)
-            if profile_origin == GENERATED_PROFILE_ORIGIN
-            else ()
-        )
-        if missing_inputs:
-            payload = {
-                "source": _serialize_snapshot(snapshot),
-                "report": _serialize_report(report),
-                "profile": _serialize_profile(profile_origin, missing_inputs),
-                "attempts": [_serialize_missing_input_channel(item) for item in missing_inputs],
-            }
-            _emit(args.json, payload, _render_prepare_text(payload))
-            return _BLOCK_EXIT
         for channel_key in selected_channels:
             validate_channel_edits(_channel_edits(profile, channel_key))
+        missing_inputs = missing_profile_inputs(profile, selected_channels)
+        missing_by_channel = {str(item["channel"]): item for item in missing_inputs}
         dossier = _augment_dossier(build_dossier(snapshot, report, profile), profile)
         attempts: list[dict[str, Any]] = []
         blocked = False
         ledger = _open_ledger(home, create=False) if _state_db_path(home).is_file() else None
         for channel_key in selected_channels:
+            missing_channel = missing_by_channel.get(channel_key)
+            if missing_channel is not None:
+                attempts.append(_serialize_missing_input_channel(missing_channel))
+                blocked = True
+                continue
             adapter = get_channel_adapter(channel_key)
             artifact: Optional[Artifact] = None
             ownership_claim_ref: Optional[str] = None
@@ -356,7 +349,7 @@ def _handle_prepare(args: argparse.Namespace) -> int:
         payload = {
             "source": _serialize_snapshot(snapshot),
             "report": _serialize_report(report),
-            "profile": _serialize_profile(profile_origin),
+            "profile": _serialize_profile(profile_origin, missing_inputs),
             "attempts": attempts,
         }
         _emit(args.json, payload, _render_prepare_text(payload))
@@ -1158,6 +1151,10 @@ def _serialize_profile(
             {
                 "channel": str(item["channel"]),
                 "fields": [str(field) for field in item.get("fields", ())],
+                "browser_observable": [str(field) for field in item.get("browser_observable", ())],
+                "agent_draft": [str(field) for field in item.get("agent_draft", ())],
+                "user_confirmation": [str(field) for field in item.get("user_confirmation", ())],
+                "next_action": str(item.get("next_action", "review")),
             }
             for item in missing_inputs
         ],
@@ -1167,18 +1164,39 @@ def _serialize_profile(
 def _serialize_missing_input_channel(item: Mapping[str, object]) -> dict[str, Any]:
     channel = str(item["channel"])
     fields = tuple(str(field) for field in item.get("fields", ()))
-    field_list = ", ".join(fields)
+    browser_fields = tuple(str(field) for field in item.get("browser_observable", ()))
+    draft_fields = tuple(str(field) for field in item.get("agent_draft", ()))
+    confirmation_fields = tuple(str(field) for field in item.get("user_confirmation", ()))
+    if browser_fields:
+        error_code = "needs_browser_observation"
+        error = "Observe the signed-in creator page before channel preparation."
+        fallback = [
+            "Open the documented creator page in the user's current browser and confirm the visible account matches the intended account.",
+            "Read only visible account/form facts, then rerun preparation with the private profile updated by the agent.",
+        ]
+    else:
+        error_code = "user_confirmation_required"
+        error = "The agent can draft these fields, but the user must confirm the final values."
+        fallback = [
+            "Draft the missing fields from the source and channel contract, then ask the user for a final confirmation.",
+        ]
+    if draft_fields:
+        fallback.append("Agent-draft fields: {0}.".format(", ".join(draft_fields)))
+    if confirmation_fields:
+        fallback.append("User-confirmed fields: {0}.".format(", ".join(confirmation_fields)))
+    fallback.append("Do not request or store passwords, cookies, tokens, QR payloads, or browser storage.")
     return {
         "run_id": "",
         "channel": channel,
         "state": PublishState.BLOCKED.value,
-        "error_code": "missing_user_input",
-        "error": "Channel preparation needs non-secret facts that cannot be inferred safely.",
+        "error_code": error_code,
+        "error": error,
         "missing_inputs": list(fields),
-        "manual_fallback": [
-            "Provide or observe only these fields: {0}.".format(field_list),
-            "Use any browser for visible account or form checks; do not share passwords, cookies, tokens, QR payloads, or browser storage.",
-        ],
+        "browser_observable": list(browser_fields),
+        "agent_draft": list(draft_fields),
+        "user_confirmation": list(confirmation_fields),
+        "next_action": str(item.get("next_action", "review")),
+        "manual_fallback": fallback,
         "remote_write_recorded": False,
     }
 
@@ -1287,6 +1305,8 @@ def _render_prepare_text(payload: Mapping[str, Any]) -> str:
         missing = item.get("missing_inputs", ())
         if missing:
             line += " missing_inputs={0}".format(",".join(str(field) for field in missing))
+        if item.get("next_action"):
+            line += " next_action={0}".format(item["next_action"])
         lines.append(line)
     return "\n".join(lines)
 

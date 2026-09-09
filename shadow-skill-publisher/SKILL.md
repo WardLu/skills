@@ -12,7 +12,8 @@ Follow this sequence exactly:
 1. `observe`
    - Load the source, evidence profile, channel contract, and channel reference first.
    - Start without requiring the user to author `profile.json`. When the CLI reports `profile.origin=generated`, use its source-derived facts. Prompt-only Skills may use their frozen `SKILL.md` as core source evidence; scripted Skills remain blocked until execution or other verifiable evidence is supplied.
-   - If `prepare` returns `missing_user_input`, ask only for the listed non-secret facts. Write an optional private profile on the user's behalf when they want repeatable runs; do not ask them to compose JSON manually.
+   - If `prepare` returns `needs_browser_observation`, use the browser flow in [references/browser-execution.md](references/browser-execution.md) to observe the signed-in creator page and update the private profile on the user's behalf. Do not ask the user to type account aliases or platform fields.
+   - If `prepare` returns `user_confirmation_required`, draft the fields from source and channel evidence, then ask only for the user's final confirmation. Do not ask them to compose JSON manually.
    - Run local checks. When core evidence declares commands, inspect the source-bound execution plan and pass its current digest to `prepare --exec-digest`; missing or mismatched authorization remains blocked.
    - Package and verify each channel artifact before building its `SubmissionPlan`. Preserve successful channel attempts when another channel blocks.
    - Read [references/channel-contract.md](references/channel-contract.md) plus the selected channel reference before describing any remote step.
@@ -23,7 +24,8 @@ Follow this sequence exactly:
 3. `act`
    - Prefer the channel's official API or CLI when the verified contract documents one.
    - If no verified API or CLI exists, use a verified browser tool available to the host agent or hand off to any user-controlled browser as documented in [references/browser-execution.md](references/browser-execution.md). Ego is one optional provider, not a dependency.
-   - Pause instead of guessing whenever the flow reaches login, CAPTCHA, QR scan, platform confirmation, user takeover, or an inactive browser space.
+   - Open the documented creator page, confirm the visible account, fill only fields from the current plan, upload the exact artifact, read back the rendered values, and stop before the final submit action.
+   - Pause instead of guessing whenever the flow reaches login, CAPTCHA, QR scan, platform confirmation, user takeover, or an inactive browser space. A session expiry is `login_required`, not a request for credentials in chat.
    - Remote writes, prefills, uploads, and registrations stay bound to the exact `channel`, `account_alias`, artifact path, and artifact SHA-256 in the current plan.
 4. `verify`
    - Read back the draft or product ID and the exact rendered field values from the remote surface before any submission step.

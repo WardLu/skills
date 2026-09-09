@@ -12,6 +12,30 @@ The browser path is optional. The publisher's local checks, packaging, confirmat
 
 Do not request, paste, or store passwords, session cookies, tokens, QR payloads, or copied browser storage in chat.
 
+## Browser-assisted preparation
+
+When `prepare` returns `needs_browser_observation`, the agent should complete the
+following loop:
+
+1. Open the channel's documented creator or upload page in the host-controlled
+   browser. Prefer the user's current signed-in tab when the host provides that
+   capability; use Ego for an isolated signed-in space when available; otherwise
+   hand off to the user's Chrome, Safari, or other browser.
+2. Confirm the visible account identity. If the page is logged out, return
+   `login_required` and ask the user to log in in that browser; never ask for
+   credentials or extract the browser session.
+3. Read only the visible account, agreement, price-format, and form-contract
+   facts already required by the channel reference. Update the private profile
+   with those observations and rerun `prepare`.
+4. After the exact plan and ZIP exist, open the same target page, fill only the
+   plan fields, upload the exact artifact, and read back every rendered value.
+5. Stop at the final review/submit page. Return the visible account, fields,
+   artifact, and current status for the user's final confirmation.
+
+The browser session remains owned by the browser. Publisher evidence may retain
+redacted observations and timestamps, but never cookies, tokens, passwords,
+QR payloads, or browser storage.
+
 ## Required handoff packet
 
 Before any browser action, provide a bounded packet that matches the current `SubmissionPlan` exactly:
@@ -40,9 +64,11 @@ The browser operator may only:
 
 - open the verified `target_url`;
 - confirm the visible account matches `account_alias`;
+- read the visible fields needed to resolve `needs_browser_observation`;
 - upload the exact artifact identified by `artifact_path` and `artifact_sha256`;
 - prefill or register only the exact field/value pairs already present in the plan;
-- read back the visible draft ID, product ID, rendered fields, and raw status text.
+- read back the visible draft ID, product ID, rendered fields, and raw status text;
+- stop before the final submit or publish action.
 
 The browser operator must not:
 

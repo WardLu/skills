@@ -5,7 +5,7 @@
 Focused, versioned, open-source skills for agent workflows.
 
 [![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
-[![Collection version 0.3.0](https://img.shields.io/badge/collection%20version-0.3.0-2563eb.svg)](VERSION)
+[![Collection version 0.4.0](https://img.shields.io/badge/collection%20version-0.4.0-2563eb.svg)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Release notes](RELEASE_NOTES.md) · [Issues](https://github.com/WardLu/skills/issues)
@@ -21,12 +21,13 @@ Choose a Skill by the task you want to complete:
 
 | Skill | Use it for | Version | Documentation |
 | --- | --- | --- | --- |
+| `agent-privacy-check` | Audit what an agent can access, where data can leave, and the plain-language privacy risk. | `0.1.0` | [English](agent-privacy-check/README.md) · [简体中文](agent-privacy-check/README.zh-CN.md) |
 | `codex-cross-provider-session-repair` | Recover an old Codex Desktop conversation after a provider, import, or fork problem. | `0.7.6` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
 | `codex-doctor` | Analyze local Codex session telemetry and find evidence-backed workflow improvements. | `0.1.2` | [English](codex-doctor/README.md) · [简体中文](codex-doctor/README.zh-CN.md) |
 | `github-repo-i18n` | Keep selected repository documentation aligned across locales. | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
 | `public-release-gate` | Review release metadata, artifacts, licenses, deployment state, and attachments. | `0.1.2` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
 | `public-repo-git-gate` | Check public content and Git boundaries before commit, push, or pull request. | `0.1.2` | [English](public-repo-git-gate/README.md) · [简体中文](public-repo-git-gate/README.zh-CN.md) |
-| `shadow-skill-publisher` | Validate, package, and track a local Agent Skill before manual publication. | `0.2.0` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
+| `shadow-skill-publisher` | Validate, package, and track a local Agent Skill before manual publication. | `0.3.0` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
 | `test-scope-routing` | Select the smallest sufficient validation scope for a change. | `0.1.2` | [English](test-scope-routing/README.md) · [简体中文](test-scope-routing/README.zh-CN.md) |
 
 ## Install

@@ -5,7 +5,7 @@
 面向 agent 工作流的专注型、可版本管理、开源 Skill 集合。
 
 [![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml)
-[![集合版本 0.3.0](https://img.shields.io/badge/collection%20version-0.3.0-2563eb.svg)](VERSION)
+[![集合版本 0.4.0](https://img.shields.io/badge/collection%20version-0.4.0-2563eb.svg)](VERSION)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 [English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [发布说明](RELEASE_NOTES.md) · [Issues](https://github.com/WardLu/skills/issues)
@@ -20,12 +20,13 @@
 
 | Skill | 用途 | 版本 | 文档 |
 | --- | --- | --- | --- |
+| `agent-privacy-check` | 检查 agent 能接触什么、数据能发到哪里，并给出大白话隐私风险报告。 | `0.1.0` | [English](agent-privacy-check/README.md) · [简体中文](agent-privacy-check/README.zh-CN.md) |
 | `codex-cross-provider-session-repair` | 修复供应商、导入或分叉导致的 Codex Desktop 旧会话问题。 | `0.7.6` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
 | `codex-doctor` | 分析本地 Codex 会话 telemetry，寻找有证据支持的工作流改进。 | `0.1.2` | [English](codex-doctor/README.md) · [简体中文](codex-doctor/README.zh-CN.md) |
 | `github-repo-i18n` | 让选定的仓库文档在不同语言之间保持一致。 | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
 | `public-release-gate` | 审核发布元数据、产物、许可证、部署状态和附件。 | `0.1.2` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
 | `public-repo-git-gate` | 在 commit、push 或 Pull Request 前检查公开内容和 Git 边界。 | `0.1.2` | [English](public-repo-git-gate/README.md) · [简体中文](public-repo-git-gate/README.zh-CN.md) |
-| `shadow-skill-publisher` | 在手动发布前校验、打包和跟踪本地 Agent Skill。 | `0.2.0` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
+| `shadow-skill-publisher` | 在手动发布前校验、打包和跟踪本地 Agent Skill。 | `0.3.0` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
 | `test-scope-routing` | 为一次改动选择最小但足够的验证范围。 | `0.1.2` | [English](test-scope-routing/README.md) · [简体中文](test-scope-routing/README.zh-CN.md) |
 
 ## 安装

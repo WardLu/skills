@@ -84,16 +84,14 @@ Every first-party publishing adapter must satisfy this shared contract before an
 
 ## Registry
 
-The registry is keyed by the five CLI channel names:
+The registry is keyed by the four CLI channel names:
 
-- `lovstudio`
 - `workbuddy`
 - `skillpay`
 - `zhihu-ai-works`
 - `xiaohongshu-red-skill`
 
 - Verified channel adapters currently exist for:
-  - `lovstudio`
   - `workbuddy`
   - `skillpay`
   - `xiaohongshu-red-skill`
