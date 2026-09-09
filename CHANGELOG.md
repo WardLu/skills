@@ -3,6 +3,23 @@
 All released collection-level changes are documented here. Individual skills
 may keep a more detailed changelog in their own directory.
 
+## [0.3.0] - 2026-09-09
+
+### Added
+
+- Added `shadow-skill-publisher` v0.2.0 for local Skill validation, channel
+  packaging, confirmation-bound handoff, and publication status tracking.
+- Added bilingual public README entry points for independently installable
+  Skills.
+
+### Changed
+
+- Made the Publisher's first local check profile-free for prompt-only Skills;
+  missing channel facts are reported without creating remote or browser state.
+- Clarified browser-neutral manual handoff and maintainer-facing documentation
+  across the collection.
+- Synchronized individual Skill versions, README indexes, and public Git gates.
+
 ## [0.2.0] - 2026-09-02
 
 ### Added
