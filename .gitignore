@@ -4,3 +4,10 @@
 # Python
 __pycache__/
 *.py[cod]
+
+# Project-local Skills installation output
+.agents/
+skills-lock.json
+
+# Local implementation plans
+docs/superpowers/plans/

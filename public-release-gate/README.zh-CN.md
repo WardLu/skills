@@ -13,6 +13,8 @@
 - 最终构建产物和压缩包；
 - 密钥、个人数据、内部资料和第三方许可证；
 - 部署响应头、生产状态和 Release 附件。
+- 固定的 `docs/release-checklist.md` 回执，其中每项只能为 `completed`、带原因的
+  `N/A`，或带原因和下一步的 `blocked`。
 
 ## 使用
 
@@ -27,6 +29,9 @@ npx skills add WardLu/skills --skill public-release-gate --global --agent <agent
 ```text
 请在发布前审核 v1.2.3、最终压缩包和已部署 URL。
 ```
+
+每个独立可发布项目都在 `docs/release-checklist.md` 维护人类可读回执。项目已有检查、
+CI 和 Release Watcher 的结果应从该文件链接，不再复制到新的发布控制器或状态存储中。
 
 ## 结果与边界
 

@@ -29,6 +29,38 @@ jobs:
                   text = (root / 'SKILL.md').read_text(encoding='utf-8')
                   assert text.startswith('---\n') and '\nname:' in text and '\ndescription:' in text
           PY
+      - name: Validate release checklist contract
+        run: |
+          python - <<'PY'
+          import pathlib
+          import re
+
+          path = pathlib.Path('docs/release-checklist.md')
+          assert path.is_file(), 'missing docs/release-checklist.md'
+          text = path.read_text(encoding='utf-8')
+          required = [
+              '## 1. Scope, version, and release inputs',
+              '## 2. Code, tests, and build artifacts',
+              '## 3. Database migrations',
+              '## 4. Functions and data repair',
+              '## 5. Configuration and CDN',
+              '## 6. Preview',
+              '## 7. Production',
+              '## 8. Rollback and recovery',
+              '## 9. Evidence and final decision',
+          ]
+          positions = [text.index(heading) for heading in required]
+          assert positions == sorted(positions), 'release checklist sections are out of order'
+          start = text.index('## 1. Scope, version, and release inputs')
+          end = text.index('## Notes')
+          section_text = text[start:end]
+          items = [line for line in section_text.splitlines() if line.startswith('- ')]
+          assert items, 'release checklist has no checklist items'
+          allowed = re.compile(r'^- .+ Status: `(completed|N/A|blocked)` — .+$')
+          invalid = [line for line in items if not allowed.match(line)]
+          assert not invalid, 'invalid or missing release checklist status line(s): ' + repr(invalid)
+          assert '`pending`' in text and '`skipped`' in text, 'status contract must reject legacy states'
+          PY
       - name: Run offline tests
         run: |
           for tests in */tests; do

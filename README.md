@@ -8,7 +8,7 @@ Focused, versioned, open-source skills for agent workflows.
 [![Collection version 0.3.0](https://img.shields.io/badge/collection%20version-0.3.0-2563eb.svg)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
+[English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Release notes](RELEASE_NOTES.md) · [Issues](https://github.com/WardLu/skills/issues)
 
 </div>
 
@@ -64,6 +64,8 @@ an unverified or blocked result as a request for review rather than success.
 - Run the repository validation workflow in
   [`.github/workflows/validate-skills.yml`](.github/workflows/validate-skills.yml)
   before merging or releasing.
+- Use [`docs/release-checklist.md`](docs/release-checklist.md) as the fixed
+  human-readable receipt for every independently releasable project.
 - Use the relevant Skill README and the collection [CHANGELOG](CHANGELOG.md)
   for contribution and release context.
 

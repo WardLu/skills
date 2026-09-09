@@ -8,7 +8,7 @@
 [![集合版本 0.3.0](https://img.shields.io/badge/collection%20version-0.3.0-2563eb.svg)](VERSION)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
+[English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [发布说明](RELEASE_NOTES.md) · [Issues](https://github.com/WardLu/skills/issues)
 
 </div>
 
@@ -59,6 +59,8 @@ npx skills remove <skill-name>
 - Skill 发生变化时，同步用户可见声明、兼容性和根目录版本索引。
 - 合并或发布前运行
   [`.github/workflows/validate-skills.yml`](.github/workflows/validate-skills.yml) 中的仓库校验。
+- 每个独立可发布项目固定使用
+  [`docs/release-checklist.md`](docs/release-checklist.md) 作为人类可读回执。
 - 贡献和发布背景请参考对应 Skill README 及集合的[变更记录](CHANGELOG.md)。
 
 ## 许可证
