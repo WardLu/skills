@@ -12,185 +12,71 @@ Focused, versioned, open-source skills for agent workflows.
 
 </div>
 
-> Small, composable skills for repeatable work — with explicit safety boundaries, offline tests, and releaseable versions.
+Small, composable Skills for repeatable agent work, with clear safety
+boundaries and independently versioned packages.
 
-## What this repository is
+## Skills
 
-This repository is a collection of self-contained skills for AI agents and developer workflows. Each skill lives in its own kebab-case directory and includes a `SKILL.md`; scripts, tests, references, documentation, licenses, and version metadata are added when the skill needs them. Individual skills may target one agent or work across several agents; their compatibility is documented in each skill's `SKILL.md` and any linked references.
+Choose a Skill by the task you want to complete:
 
-The collection currently includes Codex workflow skills, GitHub repository internationalization, public repository/release gates, and a framework-agnostic test-scope routing skill.
-
-| Skill | Purpose | Version | Documentation |
+| Skill | Use it for | Version | Documentation |
 | --- | --- | --- | --- |
-| [`codex-cross-provider-session-repair`](codex-cross-provider-session-repair/) | Diagnose and repair provider mismatches and remote compaction `404 Item with id 'rs_...' not found` errors without deleting the Codex home. | `0.7.5` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
-| [`codex-doctor`](codex-doctor/) | Analyze local Codex session telemetry and produce privacy-safe efficiency recommendations. | `0.1.1` | [SKILL.md](codex-doctor/SKILL.md) |
-| [`github-repo-i18n`](github-repo-i18n/) | Synchronize explicitly selected GitHub repository documentation, descriptions, and topics across an English default and requested locales with parity checks and Markdown previews. | `0.1.0` | [SKILL.md](github-repo-i18n/SKILL.md) |
-| [`public-release-gate`](public-release-gate/) | Review public repository releases, final artifacts, third-party notices, deployment headers, and GitHub Release attachments. | `0.1.1` | [SKILL.md](public-release-gate/SKILL.md) |
-| [`public-repo-git-gate`](public-repo-git-gate/) | Check public repository content and branch/remote/PR state across commit, push, and pull request workflows. | `0.1.1` | [SKILL.md](public-repo-git-gate/SKILL.md) |
-| [`test-scope-routing`](test-scope-routing/) | Route validation by change risk and affected boundaries instead of defaulting to the full test suite. | `0.1.1` | [SKILL.md](test-scope-routing/SKILL.md) |
+| `codex-cross-provider-session-repair` | Recover an old Codex Desktop conversation after a provider, import, or fork problem. | `0.7.6` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| `codex-doctor` | Analyze local Codex session telemetry and find evidence-backed workflow improvements. | `0.1.2` | [English](codex-doctor/README.md) · [简体中文](codex-doctor/README.zh-CN.md) |
+| `github-repo-i18n` | Keep selected repository documentation aligned across locales. | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
+| `public-release-gate` | Review release metadata, artifacts, licenses, deployment state, and attachments. | `0.1.2` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
+| `public-repo-git-gate` | Check public content and Git boundaries before commit, push, or pull request. | `0.1.2` | [English](public-repo-git-gate/README.md) · [简体中文](public-repo-git-gate/README.zh-CN.md) |
+| `shadow-skill-publisher` | Validate, package, and track a local Agent Skill before manual publication. | `0.2.0` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
+| `test-scope-routing` | Select the smallest sufficient validation scope for a change. | `0.1.2` | [English](test-scope-routing/README.md) · [简体中文](test-scope-routing/README.zh-CN.md) |
 
 ## Install
 
-### Recommended: `npx skills`
+Install one Skill for a supported agent:
 
-Each skill is installable when its directory contains a valid `SKILL.md`; a
-per-skill `README.md` is optional and is not required by the CLI. Install one
-skill globally for a supported agent with this example:
+```bash
+npx skills add WardLu/skills --skill <skill-name> --global --agent <agent-name> --yes
+```
 
-~~~bash
-npx skills add WardLu/skills --skill codex-doctor --global --agent codex --yes
-~~~
+Replace `<skill-name>` and `<agent-name>` with the values for your task and
+agent. To install the whole collection, use `--skill '*'`. The command requires
+Node.js/npm.
 
-Replace `codex-doctor` with any available skill name:
+Manage installed Skills with the same CLI:
 
-~~~text
-codex-cross-provider-session-repair
-codex-doctor
-github-repo-i18n
-public-release-gate
-public-repo-git-gate
-test-scope-routing
-~~~
-
-To install the whole collection for Codex:
-
-~~~bash
-npx skills add WardLu/skills --skill '*' --global --agent codex --yes
-~~~
-
-The command works on Windows, macOS, and Linux with Node.js/npm installed. The `skills` CLI installs the selected `SKILL.md` bundle and keeps the skill manageable through the same tool:
-
-~~~bash
+```bash
 npx skills list
-npx skills update codex-cross-provider-session-repair
-npx skills remove codex-cross-provider-session-repair
-~~~
+npx skills update <skill-name>
+npx skills remove <skill-name>
+```
 
-For another supported agent, replace `--agent codex` with that agent name. This repository must be merged to `main` before the `WardLu/skills` command can resolve newly added skills.
+## Safety
 
-### Manual installation for the current Codex skill
+Each Skill documents its own scope and compatibility. Read its README before
+use, keep credentials and real user data out of prompts and packages, and treat
+an unverified or blocked result as a request for review rather than success.
 
-Windows PowerShell:
+## For maintainers
 
-~~~powershell
-git clone https://github.com/WardLu/skills.git
-Set-Location .\skills\codex-cross-provider-session-repair
-.\scripts\install.ps1 -Destination "$env:USERPROFILE\.codex\skills"
-~~~
+- Each Skill owns its `SKILL.md`, version, README locales, and any required
+  references or tests.
+- Keep user-facing claims, compatibility, and version indexes synchronized
+  when a Skill changes.
+- Run the repository validation workflow in
+  [`.github/workflows/validate-skills.yml`](.github/workflows/validate-skills.yml)
+  before merging or releasing.
+- Use the relevant Skill README and the collection [CHANGELOG](CHANGELOG.md)
+  for contribution and release context.
 
-macOS/Linux:
+## License
 
-~~~bash
-git clone https://github.com/WardLu/skills.git
-cd skills/codex-cross-provider-session-repair
-./scripts/install.sh "$HOME/.codex/skills"
-~~~
-
-Restart the target agent after installing or upgrading so the new skill metadata is loaded.
-
-## Current skill: platform support
-
-The current session-repair skill targets Codex Desktop and supports:
-
-| Platform | Codex home fallback | Installer | Runtime |
-| --- | --- | --- | --- |
-| Windows | `%USERPROFILE%\.codex` | `scripts/install.ps1` | Python 3.9+ standard library |
-| macOS | `~/.codex` | `scripts/install.sh` | Python 3.9+ standard library |
-| Linux | `~/.codex` | `scripts/install.sh` | Python 3.9+ standard library |
-
-Set `CODEX_HOME` when Codex uses a non-default home. The repair scripts do not require third-party Python packages. Future skills may document a different compatibility matrix.
-
-## Safety-first workflow
-
-For the session repair skill:
-
-1. Stop Codex Desktop completely, including its tray process.
-2. Run a dry-run diagnosis with the exact session UUID.
-3. Review the provider and stale-reasoning findings.
-4. Apply only the smallest target-scoped repair; backups are created before writes.
-5. Relaunch Codex and send a short smoke-test prompt before resuming the original task.
-
-The skill preserves visible messages and tool history. It does not delete the whole Codex home, refresh expired credentials, or recover records that the remote service never persisted.
-
-## Repository layout
-
-~~~text
-.
-├── .github/workflows/validate-skills.yml
-├── CHANGELOG.md
-├── VERSION
-├── codex-cross-provider-session-repair/
-│   ├── SKILL.md
-│   ├── README.md
-│   ├── README.zh-CN.md
-│   ├── scripts/
-│   ├── tests/
-│   ├── evals/
-│   ├── VERSION
-│   ├── CHANGELOG.md
-│   ├── CONTRIBUTING.md
-│   ├── SECURITY.md
-│   └── LICENSE
-├── codex-doctor/
-│   ├── SKILL.md
-│   ├── agents/
-│   └── VERSION
-├── github-repo-i18n/
-│   ├── SKILL.md
-│   ├── agents/
-│   ├── references/
-│   ├── scripts/
-│   ├── tests/
-│   └── VERSION
-├── public-release-gate/
-│   ├── SKILL.md
-│   ├── agents/
-│   └── VERSION
-├── public-repo-git-gate/
-│   ├── SKILL.md
-│   ├── agents/
-│   ├── assets/
-│   ├── references/
-│   ├── scripts/
-│   ├── tests/
-│   └── VERSION
-├── test-scope-routing/
-│   ├── SKILL.md
-│   ├── agents/
-│   ├── references/
-│   └── VERSION
-├── LICENSE
-└── README.md
-~~~
-
-## Development and releases
-
-From a skill directory:
-
-~~~bash
-python -m unittest discover -s tests -v
-python scripts/repair.py --help
-python scripts/package.py --output ./dist
-~~~
-
-Skills follow [Semantic Versioning](https://semver.org/). The collection version is stored in the root `VERSION` and represented by the root release sequence (`vMAJOR.MINOR.PATCH`). Individual skills keep independent versions in their own `VERSION` and `CHANGELOG.md`; an individual skill version is not a collection version. User-visible changes should update the matching changelog, and unscoped repository tags should use the collection sequence.
-
-See the contribution rules in [`codex-cross-provider-session-repair/CONTRIBUTING.md`](codex-cross-provider-session-repair/CONTRIBUTING.md).
-
-## Security and license
-
-Do not commit real user data, session logs, backups, tokens, or API keys. For the current Codex-specific skill, read [`SECURITY.md`](codex-cross-provider-session-repair/SECURITY.md) before filing a bug with diagnostic data.
-
-This collection and its skills are released under the [MIT License](LICENSE).
-
+The collection and its Skills are released under the [MIT License](LICENSE).
 
 ## Contact
 
-Interested in B2B products, AI product development, supply-chain digitalization, or the Shadow product line? Feel free to reach out:
+Interested in B2B products, AI product development, supply-chain digitalization,
+or the Shadow product line? Feel free to reach out:
 
 - **X (Twitter)** — [@Gollumgulu](https://x.com/Gollumgulu)
 - **WeChat Official Account** — ![WeChat Official Account QR code](https://cdn.jsdelivr.net/gh/WardLu/mypic/images%E5%BE%AE%E4%BF%A1%E5%85%AC%E4%BC%97%E5%8F%B7.jpg)
 - **Xiaohongshu (RED) / Weibo / Douyin** — same handle「Ward的AI产品实战」across platforms: [Xiaohongshu (RED)](https://xhslink.cn/m/4W1NWyRrxv5) · [Weibo](https://weibo.com/u/8344390431) · [Douyin](https://v.douyin.com/1y06PMohfoE/)
 - **Email** — [wardlu@126.com](mailto:wardlu@126.com)
-
-> Available for 1:1 consulting and project coaching: product diagnosis · AI implementation · workflow / Skill · system customization
