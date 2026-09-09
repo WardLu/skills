@@ -180,6 +180,17 @@ class Ledger:
         connection.execute("PRAGMA foreign_keys = ON")
         return cls(database_path, connection)
 
+    def close(self) -> None:
+        """Close the underlying SQLite connection."""
+
+        self._connection.close()
+
+    def __enter__(self) -> "Ledger":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.close()
+
     def create_attempt(
         self,
         snapshot: SourceSnapshot,

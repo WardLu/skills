@@ -243,6 +243,7 @@ def _handle_check(args: argparse.Namespace) -> int:
 
 
 def _handle_prepare(args: argparse.Namespace) -> int:
+    ledger: Optional[Ledger] = None
     try:
         home = _resolve_home(args.home)
         snapshot, profile, evidence, ai_review, profile_origin = _load_local_inputs(
@@ -286,7 +287,7 @@ def _handle_prepare(args: argparse.Namespace) -> int:
         dossier = _augment_dossier(build_dossier(snapshot, report, profile), profile)
         attempts: list[dict[str, Any]] = []
         blocked = False
-        ledger: Optional[Ledger] = _open_ledger(home, create=False) if _state_db_path(home).is_file() else None
+        ledger = _open_ledger(home, create=False) if _state_db_path(home).is_file() else None
         for channel_key in selected_channels:
             adapter = get_channel_adapter(channel_key)
             artifact: Optional[Artifact] = None
@@ -364,9 +365,13 @@ def _handle_prepare(args: argparse.Namespace) -> int:
         return _emit_error(args.json, exc, _ERROR_EXIT)
     except (FileNotFoundError, KeyError, SubmissionPlanIncomplete, ValueError) as exc:
         return _emit_error(args.json, exc, _ERROR_EXIT)
+    finally:
+        if ledger is not None:
+            ledger.close()
 
 
 def _handle_finalize(args: argparse.Namespace) -> int:
+    ledger: Optional[Ledger] = None
     try:
         home = _resolve_home(args.home)
         ledger = _open_ledger(home, create=False)
@@ -406,9 +411,13 @@ def _handle_finalize(args: argparse.Namespace) -> int:
         RecoveryBlocked,
     ) as exc:
         return _emit_error(args.json, exc, _ERROR_EXIT)
+    finally:
+        if ledger is not None:
+            ledger.close()
 
 
 def _handle_authorize(args: argparse.Namespace) -> int:
+    ledger: Optional[Ledger] = None
     try:
         home = _resolve_home(args.home)
         ledger = _open_ledger(home, create=False)
@@ -430,9 +439,13 @@ def _handle_authorize(args: argparse.Namespace) -> int:
         return 0
     except (FileNotFoundError, KeyError, AuthorizationRequired, RecoveryBlocked, ValueError) as exc:
         return _emit_error(args.json, exc, _ERROR_EXIT)
+    finally:
+        if ledger is not None:
+            ledger.close()
 
 
 def _handle_record(args: argparse.Namespace) -> int:
+    ledger: Optional[Ledger] = None
     try:
         home = _resolve_home(args.home)
         ledger = _open_ledger(home, create=False)
@@ -488,9 +501,13 @@ def _handle_record(args: argparse.Namespace) -> int:
         return _BLOCK_EXIT if blocked_result else 0
     except (FileNotFoundError, KeyError, AuthorizationRequired, RecoveryBlocked, InvalidTransition, ValueError) as exc:
         return _emit_error(args.json, exc, _ERROR_EXIT)
+    finally:
+        if ledger is not None:
+            ledger.close()
 
 
 def _handle_status(args: argparse.Namespace) -> int:
+    ledger: Optional[Ledger] = None
     try:
         home = _resolve_home(args.home)
         if args.source is not None:
@@ -510,9 +527,13 @@ def _handle_status(args: argparse.Namespace) -> int:
         return 0
     except (FileNotFoundError, KeyError, ValueError) as exc:
         return _emit_error(args.json, exc, _ERROR_EXIT)
+    finally:
+        if ledger is not None:
+            ledger.close()
 
 
 def _handle_export(args: argparse.Namespace) -> int:
+    ledger: Optional[Ledger] = None
     try:
         home = _resolve_home(args.home)
         ledger = _open_ledger(home, create=False)
@@ -526,6 +547,9 @@ def _handle_export(args: argparse.Namespace) -> int:
         return 0
     except (FileNotFoundError, ValueError) as exc:
         return _emit_error(False, exc, _ERROR_EXIT)
+    finally:
+        if ledger is not None:
+            ledger.close()
 
 
 def _load_local_inputs(
