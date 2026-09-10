@@ -152,8 +152,8 @@ class AgentPrivacyCheckContractTests(unittest.TestCase):
         self.assertEqual(check_report(report, case), [])
 
     def test_report_checker_rejects_incomplete_or_secret_bearing_report(self):
-        synthetic_token = "sk-" + ("x" * 20)
-        report = f"Overall risk: Critical\nSecret Source: {synthetic_token}"
+        synthetic_value = "sk-" + ("x" * 20)
+        report = f"Overall risk: Critical\nSecret Source: {synthetic_value}"
         findings = check_report(report)
         self.assertIn("missing required report area: scope", findings)
         self.assertIn("report contains a credential-shaped string", findings)
