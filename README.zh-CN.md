@@ -48,6 +48,12 @@ npx skills update <skill-name>
 npx skills remove <skill-name>
 ```
 
+## 分发
+
+这个公开 GitHub 集合也可以通过开放的
+[skills.sh 目录和排行榜](https://skills.sh/) 发现。Hermes Agent 可以从
+skills.sh 或这个 GitHub 仓库搜索和安装 Skill。安装第三方 Skill 前，请先检查源码和所需权限。
+
 ## 安全
 
 每个 Skill 都会说明自己的范围和兼容性。使用前先阅读对应 README，不要把凭据和真实
