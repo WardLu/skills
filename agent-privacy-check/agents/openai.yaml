@@ -1,0 +1,7 @@
+interface:
+  display_name: "Agent Privacy Check"
+  short_description: "Audit agent access, data egress, and privacy risk"
+  default_prompt: "Use $agent-privacy-check to audit what this agent can access, where data can leave, and produce a plain-language risk report with remediation."
+
+policy:
+  allow_implicit_invocation: true
