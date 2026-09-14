@@ -3,6 +3,20 @@
 All released collection-level changes are documented here. Individual skills
 may keep a more detailed changelog in their own directory.
 
+## [0.4.0] - 2026-09-09
+
+### Added
+
+- Added agent-privacy-check v0.1.0 for read-only, plain-language audits of
+  agent access, data egress, untrusted content, and the Secret Source +
+  External Sink + Untrusted Content combination across Codex, Claude Code, and
+  generic agent runtimes.
+
+### Changed
+
+- Added a four-level Low, Medium, High, and Critical operational risk rubric
+  with evidence labels, worst-case explanations, and ordered remediation.
+
 ## [0.3.0] - 2026-09-09
 
 ### Added
