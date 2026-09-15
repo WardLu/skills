@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Mapping
 
 from ..adapters import BaseChannelAdapter, ChannelContractError
 from ..models import Artifact, ChannelStaging, Dossier, PublishState, SourceSnapshot, SubmissionPlan
@@ -33,6 +34,8 @@ class CozeSkillStoreAdapter(BaseChannelAdapter):
     optional_fields = (
         "preferred_cny_price",
         "case_links",
+        "case_names",
+        "case_image_roles",
         "cover_asset_role",
     )
     field_limits = {"project_name": 50, "skill_name": 20, "summary": 200}
@@ -76,11 +79,7 @@ class CozeSkillStoreAdapter(BaseChannelAdapter):
         pricing_strategy = "free"
         if dossier.commercial_mode == "one_time":
             pricing_strategy = "prefer_exact_then_lowest_available_tier"
-        case_links = facts.get("coze_case_links", ())
-        if isinstance(case_links, (str, bytes)):
-            case_links = (str(case_links),)
-        if not isinstance(case_links, (list, tuple)):
-            raise ChannelContractError("channel_contract_unverified", "coze_case_links must be an array", self.manual_fallback)
+        cases = self._cases(facts)
         return {
             "project_name": project_name,
             "project_description": project_description,
@@ -94,18 +93,28 @@ class CozeSkillStoreAdapter(BaseChannelAdapter):
             "pricing_strategy": pricing_strategy,
             "package_format": Path(snapshot.root).name + ".zip",
             "preferred_cny_price": preferred_price,
-            "case_links": "\n".join(str(value).strip() for value in case_links if str(value).strip()),
+            "case_links": "\n".join(case["link"] for case in cases),
+            "case_names": "\n".join(case["name"] for case in cases),
+            "case_image_roles": "\n".join(case["image_role"] for case in cases),
             "cover_asset_role": "cover" if "cover" in facts.get("listing_assets", {}) else "",
         }
 
     def build_disclosure(self, snapshot, dossier, fields):
         disclosure = dict(super().build_disclosure(snapshot, dossier, fields))
+        assets = dossier.facts.get("listing_assets", {})
+        asset_roles = frozenset(str(role) for role in assets) if isinstance(assets, Mapping) else frozenset()
+        case_links = tuple(value for value in fields["case_links"].splitlines() if value)
+        case_names = tuple(value for value in fields["case_names"].splitlines() if value)
+        case_image_roles = tuple(value for value in fields["case_image_roles"].splitlines() if value)
         disclosure["coze_contract_checks"] = {
             "listing_qualification_verified": dossier.facts.get("coze_listing_qualification_verified") is True,
             "payment_account_verified": dossier.facts.get("coze_payment_verified") is True,
-            "three_public_cases_ready": len(tuple(value for value in fields["case_links"].splitlines() if value)) == 3,
+            "three_public_cases_ready": (
+                len(case_links) == len(case_names) == len(case_image_roles) == 3
+                and all(value.startswith("https://") for value in case_links)
+                and all(role in asset_roles for role in case_image_roles)
+            ),
             "cover_ready": fields["cover_asset_role"] == "cover",
-            "case_assets_verified": dossier.facts.get("coze_case_assets_verified") is True,
         }
         return disclosure
 
@@ -115,7 +124,6 @@ class CozeSkillStoreAdapter(BaseChannelAdapter):
             "listing_qualification_verified",
             "three_public_cases_ready",
             "cover_ready",
-            "case_assets_verified",
         )
         if not isinstance(checks, dict) or any(checks.get(key) is not True for key in required):
             raise ChannelContractError(
@@ -131,6 +139,28 @@ class CozeSkillStoreAdapter(BaseChannelAdapter):
                 self.manual_fallback,
             )
         return super().build_plan(staging, artifact, account_alias)
+
+    def _cases(self, facts) -> tuple[dict[str, str], ...]:
+        raw = facts.get("coze_cases", ())
+        if not isinstance(raw, (list, tuple)):
+            raise ChannelContractError("channel_contract_unverified", "coze_cases must be an array", self.manual_fallback)
+        cases = []
+        for index, value in enumerate(raw):
+            if not isinstance(value, Mapping):
+                raise ChannelContractError("channel_contract_unverified", "each coze_cases entry must be a mapping", self.manual_fallback)
+            case = {
+                "link": str(value.get("link", "")).strip(),
+                "name": str(value.get("name", "")).strip(),
+                "image_role": str(value.get("image_role", "")).strip(),
+            }
+            if any(not item for item in case.values()):
+                raise ChannelContractError(
+                    "channel_contract_unverified",
+                    "coze_cases[{0}] requires link, name, and image_role".format(index),
+                    self.manual_fallback,
+                )
+            cases.append(case)
+        return tuple(cases)
 
     def _required_fact(self, facts, key: str) -> str:
         value = str(facts.get(key, "")).strip()

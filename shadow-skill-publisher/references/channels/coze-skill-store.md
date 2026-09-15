@@ -31,9 +31,10 @@ deploying the resulting Skill project, and listing it in the public Skill Store.
 - Cover, description, category, and three public cases are required for store
   submission. Each case needs a public Coze task share link, name, and image.
 - The adapter may stage an import package before listing is ready, but it does
-  not build an upload plan until `coze_listing_qualification_verified` and
-  `coze_case_assets_verified` are true, the cover receipt is valid, and exactly
-  three HTTPS case links are present.
+  not build an upload plan until `coze_listing_qualification_verified` is true,
+  the cover receipt is valid, and `coze_cases` contains exactly three mappings.
+  Each mapping must bind its public HTTPS `link`, non-empty `name`, and
+  `image_role` to a separately verified listing-asset receipt.
 - Paid listing requires merchant payment activation and separate listing
   qualification. Merchant activation alone is not listing approval.
 - One-time purchase uses platform-provided monthly price tiers. Prefer CNY 0.01

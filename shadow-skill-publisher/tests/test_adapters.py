@@ -204,7 +204,7 @@ class AdapterTests(unittest.TestCase):
             coze_description="读取本地遥测并生成隐私安全的效率报告。",
             coze_payment_verified=True,
             coze_listing_qualification_verified=False,
-            coze_case_links=(),
+            coze_cases=(),
             listing_assets={},
         )
         staging = CozeSkillStoreAdapter().build_staging(self.snapshot, dossier)
@@ -223,6 +223,41 @@ class AdapterTests(unittest.TestCase):
         )
         with self.assertRaises(ChannelContractError):
             CozeSkillStoreAdapter().build_plan(staging, coze_artifact, "coze-primary")
+
+    def test_coze_plan_binds_three_named_cases_to_verified_image_receipts(self):
+        assets = {}
+        for role in ("cover", "case-1", "case-2", "case-3"):
+            path = self.base / (role + ".png")
+            path.write_bytes((role + " image").encode("utf-8"))
+            assets[role] = {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest()}
+        cases = tuple(
+            {"link": "https://space.coze.cn/task/{0}".format(index), "name": "Case {0}".format(index), "image_role": "case-{0}".format(index)}
+            for index in (1, 2, 3)
+        )
+        dossier = _dossier_with_fact(
+            self.dossier,
+            coze_category="互联网",
+            coze_open_source=True,
+            coze_listing_qualification_verified=True,
+            coze_cases=cases,
+            listing_assets=assets,
+        )
+        staging = CozeSkillStoreAdapter().build_staging(self.snapshot, dossier)
+        self.assertTrue(staging.disclosure["coze_contract_checks"]["three_public_cases_ready"])
+        self.assertEqual(
+            {receipt["role"] for receipt in staging.disclosure["listing_asset_receipts"]},
+            {"cover", "case-1", "case-2", "case-3"},
+        )
+        coze_artifact = Artifact(
+            channel="coze-skill-store",
+            path=self.artifact.path,
+            sha256=self.artifact.sha256,
+            size_bytes=self.artifact.size_bytes,
+            files=self.artifact.files,
+        )
+        plan = CozeSkillStoreAdapter().build_plan(staging, coze_artifact, "coze-primary")
+        self.assertIn("Case 1", plan.fields["case_names"])
+        self.assertIn("case-1", plan.fields["case_image_roles"])
 
     def test_workbuddy_injects_required_listing_metadata_without_changing_body(self):
         for relative, payload in {
