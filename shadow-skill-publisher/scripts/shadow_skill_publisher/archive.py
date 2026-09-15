@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from hashlib import sha256
 import json
+from fnmatch import fnmatchcase
 from pathlib import Path, PurePosixPath
 import re
 import stat
@@ -18,7 +19,7 @@ _MAX_MEMBER_BYTES = 10 * 1024 * 1024
 _MAX_ARCHIVE_BYTES = 50 * 1024 * 1024
 _SECRET = re.compile(r"(?:-----BEGIN .*PRIVATE KEY-----|(?:token|api[_-]?key|secret|password)\s*[:=]|\bgh[pousr]_)", re.I)
 _PRIVATE_PATH = re.compile(r"(?:/(?:Users|home)/[^/\s]+|[A-Za-z]:[\\/]Users[\\/][^\\/\s]+)", re.I)
-_ALLOWED_ROOTS = {"SKILL.md", "LICENSE", "VERSION"}
+_ALLOWED_ROOTS = {"SKILL.md", "LICENSE", "VERSION", "_skillhub_meta.json"}
 _ALLOWED_DIRS = {"scripts", "references", "assets", "templates"}
 _EXCLUDED_NAMES = {"README.md", "README.txt", "CHANGELOG.md", "RELEASE_NOTES.md"}
 _EXCLUDED_COMPONENTS = {"private", "internal", "tests", "__pycache__"}
@@ -30,6 +31,7 @@ def build_artifact(
     channel: str,
     staging_files: Mapping[str, bytes],
     output_dir: Path,
+    excluded_patterns: Sequence[str] = (),
 ) -> Artifact:
     """Build a reproducible ZIP in ``output_dir`` without changing source files."""
 
@@ -43,26 +45,26 @@ def build_artifact(
     # channel-scoped overlay (for example, generated metadata).
     if channel != "workbuddy":
         for name in snapshot.files:
-            if _is_allowed(name, channel=channel, snapshot_name=snapshot.name):
+            if _is_allowed(name, channel=channel, snapshot_name=snapshot.name) and not _matches_any(name, excluded_patterns):
                 files[name] = _read_source_file(snapshot, name)
     for name, payload in staging_files.items():
         _validate_member_name(name)
         if not isinstance(payload, bytes):
             raise TypeError(f"staging file {name!r} must contain bytes")
-        if channel == "workbuddy" and not name.startswith(f"skills/{snapshot.name}/"):
-            if name != "LICENSE":
-                raise ValueError("workbuddy_package_path_invalid")
+        if channel == "workbuddy" and not name.startswith(f"{snapshot.name}/"):
+            raise ValueError("workbuddy_package_path_invalid")
         if not _is_allowed(name, channel=channel, snapshot_name=snapshot.name):
-            if channel == "workbuddy" and name.startswith("skills/"):
+            if channel == "workbuddy" and name.startswith(f"{snapshot.name}/"):
                 raise ValueError("workbuddy_package_path_invalid")
         else:
             files[name] = payload
 
     license_bytes = Path(snapshot.license_path).read_bytes()
-    if "LICENSE" in files and files["LICENSE"] != license_bytes:
+    license_path = f"{snapshot.name}/LICENSE" if channel == "workbuddy" else "LICENSE"
+    if license_path in files and files[license_path] != license_bytes:
         raise ValueError("license_mismatch")
-    files["LICENSE"] = license_bytes
-    required_skill_path = f"skills/{snapshot.name}/SKILL.md" if channel == "workbuddy" else "SKILL.md"
+    files[license_path] = license_bytes
+    required_skill_path = f"{snapshot.name}/SKILL.md" if channel == "workbuddy" else "SKILL.md"
     if required_skill_path not in files:
         raise ValueError("missing_skill_md")
 
@@ -93,6 +95,11 @@ def build_artifact(
         json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
     return Artifact(channel=channel, path=archive_path, sha256=digest, size_bytes=archive_path.stat().st_size, files=ordered)
+
+
+def _matches_any(name: str, patterns: Sequence[str]) -> bool:
+    normalized = str(name).replace("\\", "/")
+    return any(fnmatchcase(normalized, str(pattern).strip()) for pattern in patterns if str(pattern).strip())
 
 
 def verify_artifact(artifact: Artifact, expected_files: Sequence[str]) -> tuple[Finding, ...]:
@@ -203,7 +210,7 @@ def _is_allowed(
         return True
     prefix = package_prefix
     if channel == "workbuddy" and snapshot_name:
-        prefix = f"skills/{snapshot_name}/"
+        prefix = f"{snapshot_name}/"
     if not prefix or not name.startswith(prefix) or len(name) <= len(prefix):
         return False
     nested = name[len(prefix):]
@@ -214,7 +221,7 @@ def _is_allowed(
         return False
     if any(_is_excluded_document(part) for part in nested_parts):
         return False
-    if nested == "SKILL.md":
+    if nested in {"SKILL.md", "LICENSE", "_skillhub_meta.json"}:
         return True
     return len(nested_parts) >= 2 and nested_parts[0] in _ALLOWED_DIRS
 
@@ -234,9 +241,9 @@ def _is_excluded_document(part: str) -> bool:
 
 def _workbuddy_prefix(expected_files: Sequence[str]) -> Optional[str]:
     prefixes = {
-        f"skills/{PurePosixPath(name).parts[1]}/"
+        f"{PurePosixPath(name).parts[0]}/"
         for name in expected_files
-        if len(PurePosixPath(name).parts) >= 3 and PurePosixPath(name).parts[0] == "skills"
+        if len(PurePosixPath(name).parts) >= 2
     }
     return prefixes.pop() if len(prefixes) == 1 else None
 

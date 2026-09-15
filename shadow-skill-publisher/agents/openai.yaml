@@ -1,7 +1,7 @@
 interface:
   display_name: "Shadow Skill Publisher"
-  short_description: "Validate, package, and track local Skill publishing workflows"
-  default_prompt: "Use $shadow-skill-publisher to validate and prepare a local Skill for safe publication."
+  short_description: "Prepare, resume, and track safe multi-channel Skill publishing"
+  default_prompt: "Use $shadow-skill-publisher to validate, prepare, resume, or monitor local Skill publishing."
 
 policy:
   allow_implicit_invocation: true

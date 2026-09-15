@@ -1,9 +1,9 @@
 # Shadow Skill Publisher
 
-[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.2.0](https://img.shields.io/badge/version-0.2.0-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.6.1](https://img.shields.io/badge/version-0.6.1-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 `shadow-skill-publisher` 用于在发布 Agent Skill 前完成检查，并为选定渠道分别准备
-发布包、上架信息和状态记录。它不会代你登录平台或直接发布。
+发布包、上架信息、可恢复交接和状态记录。它不会绕过登录、协议或最终提交确认。
 
 [English](README.md) · [简体中文](README.zh-CN.md)
 
@@ -13,12 +13,19 @@
 - 自动提取安全的本地事实，首次检查不要求用户手写 profile；
 - 生成各渠道独立的 ZIP 和上架所需字段；
 - 分开记录上传、提交和发布状态，便于后续跟踪。
+- 用 `batch` 一次准备多个 Skill/渠道，并生成绑定摘要的批次确认范围；
+- 用 `resume` 恢复准确下一步，用 `monitor` 只在真实状态变化时入账；
+- 自动刷新 `state/publishing-ledger.md`，无需靠聊天截图补记；
+- 发布前校验渠道文案长度、头像/封面摘要和渠道裁剪策略。
 
-当前可为 LovStudio、WorkBuddy、SkillPay 和小红书 Red Skill 准备发布包。知乎 AI
-Works 在其创作者表单可观察并完成验证前暂不可用。
+当前可为扣子技能商店、WorkBuddy、SkillPay 和小红书 Red Skill 准备发布包。知乎 AI Works 在其
+创作者表单可观察并完成验证前暂不可用。
 
 平台登录、CAPTCHA/二维码和最终提交仍由用户掌控。本地工作流不需要浏览器；只有在
 渠道没有可验证的 API/CLI、且用户明确授权时，才需要浏览器交接。
+
+如果准备阶段需要浏览器观察，agent 可以使用当前已登录浏览器读取可见的账号和表单信息，
+填写准确计划并上传准确 ZIP，然后停在最终提交前等待用户确认。
 
 ## 安装
 
@@ -36,7 +43,7 @@ npx skills add WardLu/skills --skill shadow-skill-publisher --global --agent <ag
 例如：
 
 ```text
-请检查并准备 /path/to/my-skill，目标渠道为 LovStudio 和 WorkBuddy。
+请检查并准备 /path/to/my-skill，目标渠道为 WorkBuddy 和 SkillPay。
 ```
 
 Skill 会返回校验结果、各渠道发布包、上架字段，以及下一步确认或交接动作。如果渠道

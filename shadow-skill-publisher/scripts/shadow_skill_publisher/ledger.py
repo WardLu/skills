@@ -72,6 +72,7 @@ _VERIFIED_STATES = frozenset(
     )
 )
 _ROW_COLUMNS = (
+    "run_id",
     "status",
     "raw_status",
     "source_id",
@@ -179,6 +180,9 @@ class Ledger:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         return cls(database_path, connection)
+
+    def close(self) -> None:
+        self._connection.close()
 
     def create_attempt(
         self,
@@ -301,6 +305,28 @@ class Ledger:
             published_at=row["published_at"],
             last_verified_at=row["last_verified_at"],
         )
+
+    def find_platform_item(self, source_root: Path, channel: str, account_alias: str) -> Optional[Mapping[str, str]]:
+        """Return the latest known remote identity for create-vs-update routing."""
+        row = self._connection.execute(
+            """
+            SELECT product_id, public_url, source_version, state
+            FROM attempts
+            WHERE source_id = ? AND channel = ? AND account_alias = ?
+              AND product_id IS NOT NULL AND TRIM(product_id) != ''
+            ORDER BY COALESCE(last_verified_at, created_at) DESC, created_at DESC
+            LIMIT 1
+            """,
+            (build_source_id(Path(source_root)), str(channel), str(account_alias)),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "platform_id": str(row["product_id"]),
+            "public_url": str(row["public_url"] or ""),
+            "source_version": str(row["source_version"]),
+            "state": str(row["state"]),
+        }
 
     def save_submission_plan(self, attempt_id: str, plan: SubmissionPlan) -> None:
         attempt = self.get_attempt(attempt_id)
@@ -868,12 +894,14 @@ class Ledger:
             return stream.getvalue()
         if format_name in {"markdown", "md"}:
             lines = [
-                "| Status | Raw Status | Skill | Version | Channel | Alias | Product ID | Public URL | Artifact | Created At | Submitted At | Approved At | Published At | Last Verified At | Next Action |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+                "# Skill publishing ledger",
+                "",
+                "| Run ID | Status | Raw Status | Skill | Version | Channel | Alias | Product ID | Public URL | Artifact | Created At | Submitted At | Approved At | Published At | Last Verified At | Next Action |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
             for row in rows:
                 lines.append(
-                    "| {status} | {raw_status} | {skill_name} | {version} | {channel} | {account_alias} | {product_id} | {public_url} | {artifact_sha256} | {created_at} | {submitted_at} | {approved_at} | {published_at} | {last_verified_at} | {next_action} |".format(
+                    "| {run_id} | {status} | {raw_status} | {skill_name} | {version} | {channel} | {account_alias} | {product_id} | {public_url} | {artifact_sha256} | {created_at} | {submitted_at} | {approved_at} | {published_at} | {last_verified_at} | {next_action} |".format(
                         **{key: row.get(key, "") or "" for key in row}
                     )
                 )
@@ -919,6 +947,7 @@ class Ledger:
             if latest_plan is not None:
                 final_action = _string_or_none(latest_plan.get("final_action"))
             exported = {
+                "run_id": row["attempt_id"],
                 "status": row["state"],
                 "raw_status": row["raw_status"] or "",
                 "source_id": row["source_id"],

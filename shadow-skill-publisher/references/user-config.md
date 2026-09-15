@@ -5,11 +5,13 @@ in-memory profile from deterministic source facts. For prompt-only Skills, the
 frozen `SKILL.md` is valid core source evidence; scripted Skills still need
 execution or other verifiable evidence.
 
-When `prepare` cannot infer a channel fact safely, it returns
-`missing_user_input` with all currently missing fields for that channel. The
-agent should ask only for those non-secret facts. A stored profile is optional
-and exists to make later runs repeatable, not as a prerequisite for the first
-check.
+When `prepare` cannot infer a channel fact safely, it returns a classified
+missing-input group. `needs_browser_observation` means the agent should read
+the visible signed-in creator page and update the private profile. It should not
+ask the user to type account aliases or platform fields. `user_confirmation_required`
+means the agent may draft the value but the user must approve the final choice.
+A stored profile is optional and exists to make later runs repeatable, not as a
+prerequisite for the first check.
 
 When `--profile` is supplied, that exact file is used. Otherwise the publisher
 looks for `config/profile.json` under the resolved private workspace. Workspace
@@ -51,20 +53,55 @@ Example evidence profile:
 }
 ```
 
+Reusable decisions belong in the private profile so later batches do not ask
+again. A confirmed low-price acquisition policy, immutable listing assets, and
+channel-specific package editions can be expressed as:
+
+```json
+{
+  "business_policy": {
+    "default_mode": "one_time",
+    "default_price": "0.01",
+    "currency": "CNY",
+    "confirmed": true
+  },
+  "listing_assets": {
+    "avatar": {"path": "/private/path/avatar.png", "sha256": "<sha256>"}
+  },
+  "channel_artifact_policy": {
+    "xiaohongshu-red-skill": {"exclude": ["scripts/**"]}
+  }
+}
+```
+
+These values stay local. Asset paths never enter a package or exported ledger;
+only their digest, size, role, and suffix are bound into the plan. Exclusions
+are safe relative globs and cannot remove required `SKILL.md` or license files.
+
 Generated profiles never invent identity or live channel verification. Typical
-missing fields include:
+browser-observable fields include:
 
 - `accounts.<channel>` for the visible account alias;
-- `source_url` for LovStudio when no public source URL is known;
-- `author`, `description_zh`, and `allowed_tools` for WorkBuddy;
 - creator identity, agreement, price-format, and form-contract observations for
   SkillPay.
+
+The agent may derive or draft `description_zh` and `allowed_tools`
+from the public source and channel contract, then ask only for final approval
+when the value is not deterministic. Author ownership and commercial decisions
+remain explicit user confirmations.
 
 Visible account and form facts may be observed in any user-controlled browser.
 Do not copy passwords, cookies, tokens, QR payloads, or browser storage into the
 profile.
 
 `author.display_name` and `author.source_url` become first-class Release Dossier facts. Keep channel-specific human copy outside the canonical Skill. `profile.json` may contain a private `channel_edits` mapping keyed by channel, for example `{"channel_edits": {"workbuddy": {"description": "Approved human copy"}}}`. Only safe text fields (`title`, descriptions, summaries, applicability, workflow, risks, and limitations) are accepted; generated identity, version, digest, permission, account, package, and price fields are rejected. `prepare` stores redacted `FrozenFields` bound to the source, channel, and attempt, reapplies the copy on later prepares for the same source/channel, and reports any changed generated facts separately. Generated fact hashes remain local metadata and are never inserted into channel-facing fields.
+
+For WorkBuddy marketplace branding, the private profile may also provide
+`display_name`, `description_zh`, `description_en`, `examples_zh`, and
+`examples_en`. The WorkBuddy adapter keeps the executable `SKILL.md` contract
+separate from the market metadata and writes the localized example arrays to
+`_skillhub_meta.json`. These values are listing copy, not evidence claims; keep
+them accurate and do not place credentials or private paths in them.
 
 For non-command capability evidence, fail closed unless the profile records
 explicit proof. `source` evidence needs a safe relative `path`, the current

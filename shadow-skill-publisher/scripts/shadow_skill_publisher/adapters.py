@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 from dataclasses import replace
+import hashlib
+from pathlib import Path
 from typing import Mapping, Optional
 
 from .confirmations import upload_digest
@@ -45,6 +47,9 @@ class BaseChannelAdapter:
     allowed_commercial_modes = ("free", "one_time")
     state_mappings = {}
     public_verification_signals = ()
+    field_limits: Mapping[str, int] = {}
+    allowed_categories = ()
+    listing_asset_extensions = (".png", ".jpg", ".jpeg", ".webp")
     manual_fallback = _DEFAULT_MANUAL_FALLBACK
     contract_verified = True
 
@@ -55,7 +60,9 @@ class BaseChannelAdapter:
         files = dict(self.render_files(snapshot, dossier))
         fields = self.render_fields(snapshot, dossier)
         self.ensure_contract_fields(fields)
+        asset_receipts = self._validate_listing_policy(fields, dossier)
         disclosure = self.build_disclosure(snapshot, dossier, fields)
+        disclosure["listing_asset_receipts"] = asset_receipts
         return ChannelStaging(
             channel=self.key,
             contract_version=self.contract_version,
@@ -203,6 +210,43 @@ class BaseChannelAdapter:
                 "Commercial mode {0!r} is not supported for channel {1}.".format(dossier.commercial_mode, self.key),
                 self.manual_fallback,
             )
+
+    def _validate_listing_policy(self, fields: Mapping[str, str], dossier: Dossier) -> tuple[Mapping[str, object], ...]:
+        for key, limit in self.field_limits.items():
+            value = str(fields.get(key, ""))
+            if len(value) > int(limit):
+                raise ChannelPolicyError(
+                    "field_limit_exceeded",
+                    "{0}.{1} exceeds the verified {2}-character limit".format(self.key, key, limit),
+                    self.manual_fallback,
+                )
+        category = str(fields.get("category", "")).strip()
+        allowed = tuple(str(value) for value in self.allowed_categories)
+        if category and allowed and category not in allowed:
+            raise ChannelPolicyError(
+                "category_unverified",
+                "category {0!r} is not in the verified {1} category set".format(category, self.key),
+                self.manual_fallback,
+            )
+        assets = dossier.facts.get("listing_assets", {})
+        if assets in (None, {}):
+            return ()
+        if not isinstance(assets, Mapping):
+            raise ChannelPolicyError("listing_asset_invalid", "listing_assets must be a mapping", self.manual_fallback)
+        receipts = []
+        for role, value in sorted(assets.items(), key=lambda item: str(item[0])):
+            spec = value if isinstance(value, Mapping) else {"path": value}
+            path = Path(str(spec.get("path", ""))).expanduser().resolve()
+            if not path.is_file() or path.stat().st_size <= 0:
+                raise ChannelPolicyError("listing_asset_invalid", "listing asset is missing or empty: {0}".format(role), self.manual_fallback)
+            if path.suffix.lower() not in self.listing_asset_extensions:
+                raise ChannelPolicyError("listing_asset_invalid", "unsupported listing asset format: {0}".format(path.suffix), self.manual_fallback)
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            expected = str(spec.get("sha256", "")).strip()
+            if expected and expected != digest:
+                raise ChannelPolicyError("listing_asset_digest_mismatch", "listing asset digest changed: {0}".format(role), self.manual_fallback)
+            receipts.append({"role": str(role), "sha256": digest, "size_bytes": path.stat().st_size, "suffix": path.suffix.lower()})
+        return tuple(receipts)
 
     def _normalize_status(self, raw_status: str) -> str:
         return " ".join(str(raw_status).strip().lower().split())

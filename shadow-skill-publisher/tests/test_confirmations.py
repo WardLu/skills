@@ -205,7 +205,7 @@ class ConfirmationDigestTests(unittest.TestCase):
         self.assertFalse(can_execute_remote_action(malformed, "upload", authorizations=(auth,)))
 
     def test_digest_scope_mismatch_is_rejected_for_channel_account_and_artifact(self):
-        other_channel = replace(self.plan, channel="lovstudio")
+        other_channel = replace(self.plan, channel="skillpay")
         other_account = replace(self.plan, account_alias="secondary")
         other_artifact = replace(self.plan, artifact=self.other_artifact)
 
@@ -232,7 +232,7 @@ class ConfirmationDigestTests(unittest.TestCase):
         )
 
     def test_plan_and_artifact_channel_mismatch_fails_closed(self):
-        mismatched = replace(self.plan, channel="lovstudio")
+        mismatched = replace(self.plan, channel="skillpay")
         authorization = Authorization(kind="upload", digest=upload_digest(mismatched))
 
         self.assertFalse(can_execute_remote_action(mismatched, "upload", authorizations=(authorization,)))

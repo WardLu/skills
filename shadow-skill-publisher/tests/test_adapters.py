@@ -1,4 +1,5 @@
 import hashlib
+import json
 import sys
 import tempfile
 import unittest
@@ -10,7 +11,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from shadow_skill_publisher.adapters import BaseChannelAdapter, ChannelContractError, ChannelPolicyError
 from shadow_skill_publisher.archive import build_artifact, verify_artifact
 from shadow_skill_publisher.channels import CHANNEL_KEYS, CHANNEL_REGISTRY, get_channel_adapter
-from shadow_skill_publisher.channels.lovstudio import LovStudioAdapter
+from shadow_skill_publisher.channels.coze_skill_store import CozeSkillStoreAdapter
 from shadow_skill_publisher.channels.skillpay import SkillPayAdapter
 from shadow_skill_publisher.channels.workbuddy import WorkBuddyAdapter
 from shadow_skill_publisher.channels.xiaohongshu_red_skill import XiaohongshuRedSkillAdapter
@@ -70,9 +71,13 @@ def _dossier(mode: str = "one_time", price: str = "19") -> Dossier:
             "support_url": "https://example.test/support",
             "description_zh": "简短中文介绍",
             "description_en": "A brief English introduction.",
+            "examples_zh": ("请帮我完成一个演示任务。", "检查演示任务结果。", "总结这次演示。"),
+            "examples_en": ("Complete a demo task.", "Check the demo result.", "Summarize the demo."),
             "author": "Example Partner",
             "author_confirmed": True,
             "allowed_tools": ("Bash", "Read"),
+            "workbuddy_developer_profile_verified": True,
+            "workbuddy_publication_mode": "public",
             "creator_account_alias": "skillpay-creator",
             "creator_identity_verified": True,
             "required_agreements_verified": True,
@@ -100,25 +105,6 @@ def _dossier_with_fact(dossier: Dossier, **updates: object) -> Dossier:
         commercial_mode=dossier.commercial_mode,
         price=dossier.price,
         facts=facts,
-    )
-
-
-def _dossier_without_source_url() -> Dossier:
-    return Dossier(
-        identity={"name": "demo-skill", "version": "1.0.0", "kind": "prompt"},
-        claims=(),
-        removed_claims=(),
-        commercial_mode="one_time",
-        price="19",
-        facts={
-            "permissions": ("read:workspace",),
-            "external_services": ("openai",),
-            "data_handling": ("No remote writes.",),
-            "risks": ("Human confirmation required.",),
-            "limitations": ("Placeholder adapter.",),
-            "license": "MIT",
-            "support_url": "https://example.test/support",
-        },
     )
 
 
@@ -206,38 +192,28 @@ class AdapterTests(unittest.TestCase):
         staging = DemoFilesAdapter().build_staging(self.snapshot, self.dossier)
         self.assertEqual(staging.files, {"channel.json": b"{\"channel\":\"demo\"}"})
 
-    def test_lovstudio_plan_contains_version_source_and_install_fields(self):
-        adapter = LovStudioAdapter()
-        staging = adapter.build_staging(self.snapshot, self.dossier)
-        artifact = build_artifact(self.snapshot, adapter.key, staging.files, self.base / "lovstudio-artifact")
-        plan = adapter.build_plan(staging, artifact, "ward-primary")
-        self.assertEqual(plan.channel, "lovstudio")
-        self.assertEqual(plan.fields["name"], "demo-skill")
-        self.assertEqual(plan.fields["title"], "Demo Skill")
-        self.assertEqual(plan.fields["concise_description"], self.snapshot.description)
-        self.assertEqual(plan.fields["version"], self.snapshot.version)
-        self.assertEqual(plan.fields["license"], "MIT")
-        self.assertEqual(plan.fields["source_url"], "https://github.com/example/demo-skill")
-        self.assertEqual(plan.fields["support_url"], "https://example.test/support")
-        self.assertEqual(plan.fields["install_command"], "npx -y lovstudio@latest skills add demo-skill")
-        self.assertEqual(plan.fields["permissions"], "read:workspace")
-        self.assertEqual(plan.fields["risks"], "Human confirmation required.")
-        self.assertEqual(plan.fields["limitations"], "Placeholder adapter.")
-
-    def test_lovstudio_missing_source_url_blocks_instead_of_falling_back_to_support_url(self):
-        adapter = LovStudioAdapter()
-        with self.assertRaises(ChannelContractError) as error:
-            adapter.build_staging(self.snapshot, _dossier_without_source_url())
-        self.assertEqual(error.exception.code, "channel_contract_unverified")
-        self.assertTrue(error.exception.manual_fallback)
-
-    def test_lovstudio_install_command_keeps_full_snapshot_name(self):
-        adapter = LovStudioAdapter()
-        prefixed_snapshot = _snapshot(self.base / "prefixed-source", name="lov-demo-skill")
-        staging = adapter.build_staging(prefixed_snapshot, self.dossier)
-        self.assertEqual(staging.fields["name"], "lov-demo-skill")
-        self.assertEqual(staging.fields["title"], "Lov Demo Skill")
-        self.assertEqual(staging.fields["install_command"], "npx -y lovstudio@latest skills add lov-demo-skill")
+    def test_coze_contract_binds_listing_fields_and_lowest_tier_fallback(self):
+        dossier = _dossier_with_fact(
+            self.dossier,
+            coze_category="互联网",
+            coze_open_source=True,
+            coze_display_name="Codex使用诊断",
+            coze_project_name="Ward的AI产品实战｜Codex Doctor Codex体验医生",
+            coze_project_description="分析本地 Codex 会话并给出改进建议。",
+            coze_summary="分析 Codex 使用效率并给出改进建议。",
+            coze_description="读取本地遥测并生成隐私安全的效率报告。",
+            coze_payment_verified=True,
+            coze_listing_qualification_verified=False,
+            coze_case_links=(),
+            listing_assets={},
+        )
+        staging = CozeSkillStoreAdapter().build_staging(self.snapshot, dossier)
+        self.assertEqual(staging.fields["skill_name"], "Codex使用诊断")
+        self.assertEqual(staging.fields["project_name"], "Ward的AI产品实战｜Codex Doctor Codex体验医生")
+        self.assertEqual(staging.fields["preferred_cny_price"], "19")
+        self.assertEqual(staging.fields["pricing_strategy"], "prefer_exact_then_lowest_available_tier")
+        self.assertFalse(staging.disclosure["coze_contract_checks"]["three_public_cases_ready"])
+        self.assertFalse(staging.disclosure["coze_contract_checks"]["listing_qualification_verified"])
 
     def test_workbuddy_injects_required_listing_metadata_without_changing_body(self):
         for relative, payload in {
@@ -257,31 +233,40 @@ class AdapterTests(unittest.TestCase):
         )
 
         staging = WorkBuddyAdapter().build_staging(self.snapshot, self.dossier)
-        self.assertIn("skills/demo-skill/SKILL.md", staging.files)
-        staged = staging.files["skills/demo-skill/SKILL.md"].decode("utf-8")
+        self.assertIn("demo-skill/SKILL.md", staging.files)
+        self.assertIn("demo-skill/_skillhub_meta.json", staging.files)
+        market_meta = json.loads(staging.files["demo-skill/_skillhub_meta.json"].decode("utf-8"))
+        self.assertEqual(market_meta["examples_zh"], ["请帮我完成一个演示任务。", "检查演示任务结果。", "总结这次演示。"])
+        self.assertEqual(market_meta["examples_en"], ["Complete a demo task.", "Check the demo result.", "Summarize the demo."])
+        staged = staging.files["demo-skill/SKILL.md"].decode("utf-8")
         self.assertIn("description_zh:", staged)
         self.assertIn("description_en:", staged)
         self.assertEqual(extract_body(staged), extract_body(self.snapshot.skill_md_text))
         self.assertIn("name: demo-skill\n", staged)
+        self.assertIn("display_name: Demo Skill\n", staged)
+        self.assertIn("display_name_en: Demo Skill\n", staged)
         self.assertIn("version: 1.0.0\n", staged)
         self.assertIn("author: Example Partner\n", staged)
         self.assertIn("allowed-tools: Bash, Read\n", staged)
         self.assertIn("description_zh: 简短中文介绍\n", staged)
         self.assertIn("description_en: A brief English introduction.\n", staged)
-        self.assertIn("workbuddy-package-root: skills/demo-skill\n", staged)
-        self.assertIn("workbuddy-skill-path: skills/demo-skill/SKILL.md\n", staged)
+        self.assertIn("workbuddy-package-root: demo-skill\n", staged)
+        self.assertIn("workbuddy-skill-path: demo-skill/SKILL.md\n", staged)
         self.assertIn("workbuddy-resource-directories: references, scripts, templates\n", staged)
         self.assertEqual(staging.fields["resource_directories"], "references, scripts, templates")
+        self.assertEqual(staging.fields["publication_mode"], "public")
+        self.assertTrue(staging.disclosure["workbuddy_publication_checks"]["developer_profile_verified"])
 
         artifact = build_artifact(self.snapshot, "workbuddy", staging.files, self.base / "workbuddy-artifact")
         self.assertEqual(
             artifact.files,
             (
-                "LICENSE",
-                "skills/demo-skill/SKILL.md",
-                "skills/demo-skill/references/api-spec.md",
-                "skills/demo-skill/scripts/tool.py",
-                "skills/demo-skill/templates/report.sh",
+                "demo-skill/LICENSE",
+                "demo-skill/SKILL.md",
+                "demo-skill/_skillhub_meta.json",
+                "demo-skill/references/api-spec.md",
+                "demo-skill/scripts/tool.py",
+                "demo-skill/templates/report.sh",
             ),
         )
         self.assertEqual(verify_artifact(artifact, artifact.files), ())
@@ -289,11 +274,12 @@ class AdapterTests(unittest.TestCase):
             self.assertEqual(
                 tuple(sorted(archive.namelist())),
                 (
-                    "LICENSE",
-                    "skills/demo-skill/SKILL.md",
-                    "skills/demo-skill/references/api-spec.md",
-                    "skills/demo-skill/scripts/tool.py",
-                    "skills/demo-skill/templates/report.sh",
+                    "demo-skill/LICENSE",
+                    "demo-skill/SKILL.md",
+                    "demo-skill/_skillhub_meta.json",
+                    "demo-skill/references/api-spec.md",
+                    "demo-skill/scripts/tool.py",
+                    "demo-skill/templates/report.sh",
                 ),
             )
 
@@ -306,7 +292,7 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(plan.channel, "workbuddy")
         self.assertIn("demo-skill-1.0.0-workbuddy.zip", plan.manual_fallback[0])
         self.assertIn("workbuddy-primary", plan.manual_fallback[0])
-        self.assertIn("skills/demo-skill/SKILL.md", plan.manual_fallback[0])
+        self.assertIn("demo-skill/SKILL.md", plan.manual_fallback[0])
         self.assertIn("workbuddy-package-root", plan.manual_fallback[0])
         self.assertIn("workbuddy-skill-path", plan.manual_fallback[0])
         self.assertIn("workbuddy-resource-directories", plan.manual_fallback[0])
@@ -506,20 +492,15 @@ class AdapterTests(unittest.TestCase):
     def test_registry_uses_explicit_cli_keys_and_replaces_verified_channel_placeholders_only(self):
         self.assertEqual(
             CHANNEL_KEYS,
-            ("lovstudio", "workbuddy", "skillpay", "zhihu-ai-works", "xiaohongshu-red-skill"),
+            ("coze-skill-store", "workbuddy", "skillpay", "zhihu-ai-works", "xiaohongshu-red-skill"),
         )
         self.assertEqual(set(CHANNEL_REGISTRY), set(CHANNEL_KEYS))
-        adapter = get_channel_adapter("lovstudio")
-        self.assertIsInstance(adapter, LovStudioAdapter)
-        self.assertEqual(adapter.key, "lovstudio")
-        staging = adapter.build_staging(self.snapshot, self.dossier)
-        self.assertEqual(staging.fields["install_command"], "npx -y lovstudio@latest skills add demo-skill")
 
         workbuddy = get_channel_adapter("workbuddy")
         self.assertIsInstance(workbuddy, WorkBuddyAdapter)
         self.assertEqual(workbuddy.key, "workbuddy")
         workbuddy_staging = workbuddy.build_staging(self.snapshot, self.dossier)
-        self.assertIn("skills/demo-skill/SKILL.md", workbuddy_staging.files)
+        self.assertIn("demo-skill/SKILL.md", workbuddy_staging.files)
 
         skillpay = get_channel_adapter("skillpay")
         self.assertIsInstance(skillpay, SkillPayAdapter)
