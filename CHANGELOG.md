@@ -3,7 +3,7 @@
 All released collection-level changes are documented here. Individual skills
 may keep a more detailed changelog in their own directory.
 
-## [0.4.0] - 2026-09-15
+## [0.4.0] - 2026-09-16
 
 ### Added
 
