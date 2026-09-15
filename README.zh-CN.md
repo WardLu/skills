@@ -24,9 +24,9 @@
 | `codex-cross-provider-session-repair` | 修复供应商、导入或分叉导致的 Codex Desktop 旧会话问题。 | `0.7.6` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
 | `codex-doctor` | 分析本地 Codex 会话 telemetry，寻找有证据支持的工作流改进。 | `0.1.2` | [English](codex-doctor/README.md) · [简体中文](codex-doctor/README.zh-CN.md) |
 | `github-repo-i18n` | 让选定的仓库文档在不同语言之间保持一致。 | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
-| `public-release-gate` | 审核发布元数据、产物、许可证、部署状态和附件。 | `0.1.2` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
+| `public-release-gate` | 审核发布元数据、产物、许可证、部署状态和附件。 | `0.1.4` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
 | `public-repo-git-gate` | 在 commit、push 或 Pull Request 前检查公开内容和 Git 边界。 | `0.1.2` | [English](public-repo-git-gate/README.md) · [简体中文](public-repo-git-gate/README.zh-CN.md) |
-| `shadow-skill-publisher` | 在手动发布前校验、打包和跟踪本地 Agent Skill。 | `0.2.0` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
+| `shadow-skill-publisher` | 在手动发布前校验、打包和跟踪本地 Agent Skill。 | `0.6.1` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
 | `test-scope-routing` | 为一次改动选择最小但足够的验证范围。 | `0.1.2` | [English](test-scope-routing/README.md) · [简体中文](test-scope-routing/README.zh-CN.md) |
 
 ## 安装

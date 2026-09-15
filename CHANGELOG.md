@@ -3,7 +3,7 @@
 All released collection-level changes are documented here. Individual skills
 may keep a more detailed changelog in their own directory.
 
-## [0.4.0] - 2026-09-09
+## [0.4.0] - 2026-09-15
 
 ### Added
 
@@ -16,6 +16,15 @@ may keep a more detailed changelog in their own directory.
 
 - Added a four-level Low, Medium, High, and Critical operational risk rubric
   with evidence labels, worst-case explanations, and ordered remediation.
+- Upgraded shadow-skill-publisher to v0.6.1 with digest-bound batch workflows,
+  resumable handoffs, read-only monitoring, Coze Skill Store support, reusable
+  listing assets, and corrected single-root WorkBuddy archives.
+- Upgraded public-release-gate to v0.1.4 for its corrected WorkBuddy package;
+  v0.1.3 was consumed by a withdrawn marketplace review and was not published.
+- Synchronized codex-cross-provider-session-repair frontmatter metadata with
+  its existing v0.7.6 VERSION and README files.
+- Removed the unverified LovStudio channel contract from
+  shadow-skill-publisher.
 
 ## [0.3.0] - 2026-09-09
 
