@@ -16,7 +16,7 @@ may keep a more detailed changelog in their own directory.
 
 - Added a four-level Low, Medium, High, and Critical operational risk rubric
   with evidence labels, worst-case explanations, and ordered remediation.
-- Upgraded shadow-skill-publisher to v0.6.2 with digest-bound batch workflows,
+- Upgraded shadow-skill-publisher to v0.6.3 with digest-bound batch workflows,
   resumable handoffs, read-only monitoring, Coze Skill Store support, reusable
   listing assets, and corrected single-root WorkBuddy archives.
 - Upgraded public-release-gate to v0.1.4 for its corrected WorkBuddy package;

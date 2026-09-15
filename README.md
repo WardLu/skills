@@ -27,7 +27,7 @@ Choose a Skill by the task you want to complete:
 | `github-repo-i18n` | Keep selected repository documentation aligned across locales. | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
 | `public-release-gate` | Review release metadata, artifacts, licenses, deployment state, and attachments. | `0.1.4` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
 | `public-repo-git-gate` | Check public content and Git boundaries before commit, push, or pull request. | `0.1.2` | [English](public-repo-git-gate/README.md) · [简体中文](public-repo-git-gate/README.zh-CN.md) |
-| `shadow-skill-publisher` | Validate, package, and track a local Agent Skill before manual publication. | `0.6.2` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
+| `shadow-skill-publisher` | Validate, package, and track a local Agent Skill before manual publication. | `0.6.3` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
 | `test-scope-routing` | Select the smallest sufficient validation scope for a change. | `0.1.2` | [English](test-scope-routing/README.md) · [简体中文](test-scope-routing/README.zh-CN.md) |
 
 ## Install

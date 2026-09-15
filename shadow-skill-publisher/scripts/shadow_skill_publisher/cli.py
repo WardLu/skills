@@ -54,7 +54,7 @@ from .redaction import redact_text
 from .source import SourceContractError, SourceSnapshot, load_source
 
 
-VERSION = "0.6.2"
+VERSION = "0.6.3"
 COMMANDS = ("check", "prepare", "batch", "authorize-batch", "resume", "monitor", "finalize", "authorize", "record", "status", "export")
 
 _BLOCK_EXIT = 1

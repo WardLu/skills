@@ -146,6 +146,13 @@ def _upload_payload(plan: SubmissionPlan) -> dict[str, Any]:
         "listing_asset_receipts": _canonicalize(
             _mapping_value(plan.disclosure, "listing_asset_receipts", ())
         ),
+        "channel_contract_checks": _canonicalize(
+            {
+                str(key): value
+                for key, value in plan.disclosure.items()
+                if str(key).endswith("_contract_checks")
+            }
+        ),
         "disclosure_summary": {
             "fields": _string_mapping(plan.fields, "fields"),
             "claims": _string_sequence(_mapping_value(plan.disclosure, "claims", ())),

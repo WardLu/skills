@@ -82,6 +82,23 @@ class ConfirmationDigestTests(unittest.TestCase):
         self.assertNotEqual(upload_digest(self.plan), upload_digest(with_policy))
         self.assertNotEqual(upload_digest(self.plan), upload_digest(with_asset))
 
+    def test_upload_digest_binds_channel_contract_checks(self):
+        qualified = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "coze_contract_checks": {"listing_qualification_verified": True},
+            },
+        )
+        unqualified = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "coze_contract_checks": {"listing_qualification_verified": False},
+            },
+        )
+        self.assertNotEqual(upload_digest(qualified), upload_digest(unqualified))
+
     def test_submission_digest_changes_with_price_or_action(self):
         first = finalize_submission_plan(self.plan, "draft-1", {**self.plan.fields, "price": "19"}, "submit_review")
         changed_price = finalize_submission_plan(self.plan, "draft-1", {**self.plan.fields, "price": "29"}, "submit_review")

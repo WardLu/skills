@@ -111,7 +111,10 @@ class CozeSkillStoreAdapter(BaseChannelAdapter):
             "payment_account_verified": dossier.facts.get("coze_payment_verified") is True,
             "three_public_cases_ready": (
                 len(case_links) == len(case_names) == len(case_image_roles) == 3
+                and len(set(case_links)) == 3
+                and len(set(case_image_roles)) == 3
                 and all(value.startswith("https://") for value in case_links)
+                and all(role != "cover" for role in case_image_roles)
                 and all(role in asset_roles for role in case_image_roles)
             ),
             "cover_ready": fields["cover_asset_role"] == "cover",

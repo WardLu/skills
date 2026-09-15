@@ -259,6 +259,13 @@ class AdapterTests(unittest.TestCase):
         self.assertIn("Case 1", plan.fields["case_names"])
         self.assertIn("case-1", plan.fields["case_image_roles"])
 
+        duplicate_cases = tuple({**case, "image_role": "case-1"} for case in cases)
+        duplicate_dossier = _dossier_with_fact(dossier, coze_cases=duplicate_cases)
+        duplicate_staging = CozeSkillStoreAdapter().build_staging(self.snapshot, duplicate_dossier)
+        self.assertFalse(duplicate_staging.disclosure["coze_contract_checks"]["three_public_cases_ready"])
+        with self.assertRaises(ChannelContractError):
+            CozeSkillStoreAdapter().build_plan(duplicate_staging, coze_artifact, "coze-primary")
+
     def test_workbuddy_injects_required_listing_metadata_without_changing_body(self):
         for relative, payload in {
             "references/api-spec.md": "# API\n",
