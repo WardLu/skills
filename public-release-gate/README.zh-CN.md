@@ -1,6 +1,6 @@
 # Public Release Gate
 
-[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.1.2](https://img.shields.io/badge/version-0.1.2-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.1.4](https://img.shields.io/badge/version-0.1.4-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 `public-release-gate` 把公开仓库 Release 作为完整交付物进行审核。它会同时检查源码、
 最终产物、Release 页面和部署状态，不会把 commit 或 CI 通过当成发布批准。
