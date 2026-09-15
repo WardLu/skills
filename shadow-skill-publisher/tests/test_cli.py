@@ -88,6 +88,8 @@ def command_profile() -> dict:
         "description_en": "English summary",
         "author": "CLI Tester",
         "allowed_tools": ["Bash"],
+        "workbuddy_developer_profile_verified": True,
+        "workbuddy_publication_mode": "public",
     }
 
 
@@ -110,8 +112,11 @@ def source_profile(skill: Path) -> dict:
 
 class CliMetadataTests(unittest.TestCase):
     def test_version_and_commands_are_available(self):
-        self.assertEqual(VERSION, "0.2.0")
-        self.assertEqual(COMMANDS, ("check", "prepare", "finalize", "authorize", "record", "status", "export"))
+        self.assertEqual(VERSION, "0.6.3")
+        self.assertEqual(
+            COMMANDS,
+            ("check", "prepare", "batch", "authorize-batch", "resume", "monitor", "finalize", "authorize", "record", "status", "export"),
+        )
 
     def test_top_level_help_lists_every_command(self):
         entrypoint = Path(__file__).resolve().parents[1] / "scripts" / "publisher.py"
@@ -210,7 +215,6 @@ class CliMetadataTests(unittest.TestCase):
                     "prepare",
                     str(skill),
                     "--channels",
-                    "lovstudio",
                     "workbuddy",
                     "skillpay",
                     "xiaohongshu-red-skill",
@@ -225,10 +229,16 @@ class CliMetadataTests(unittest.TestCase):
         self.assertTrue(payload["report"]["allowed"])
         self.assertEqual(payload["profile"]["origin"], "generated")
         missing = {item["channel"]: set(item["fields"]) for item in payload["profile"]["missing_inputs"]}
-        self.assertEqual(missing["lovstudio"], {"accounts.lovstudio", "source_url"})
         self.assertEqual(
             missing["workbuddy"],
-            {"accounts.workbuddy", "author", "description_zh", "allowed_tools"},
+            {
+                "accounts.workbuddy",
+                "author",
+                "description_zh",
+                "allowed_tools",
+                "workbuddy_developer_profile_verified",
+                "workbuddy_publication_mode",
+            },
         )
         self.assertEqual(
             missing["skillpay"],
@@ -241,8 +251,14 @@ class CliMetadataTests(unittest.TestCase):
             },
         )
         self.assertEqual(missing["xiaohongshu-red-skill"], {"accounts.xiaohongshu-red-skill"})
-        self.assertEqual(len(payload["attempts"]), 4)
-        self.assertTrue(all(item["error_code"] == "missing_user_input" for item in payload["attempts"]))
+        self.assertEqual(len(payload["attempts"]), 3)
+        self.assertTrue(all(item["error_code"] == "needs_browser_observation" for item in payload["attempts"]))
+        self.assertEqual(
+            payload["attempts"][0]["browser_observable"],
+            ["accounts.workbuddy", "workbuddy_developer_profile_verified"],
+        )
+        self.assertEqual(payload["attempts"][0]["user_confirmation"], ["author", "workbuddy_publication_mode"])
+        self.assertEqual(payload["attempts"][0]["agent_draft"], ["description_zh", "allowed_tools"])
         self.assertFalse(home.exists())
 
     def test_explicit_missing_profile_returns_structured_error(self):
@@ -273,15 +289,94 @@ class CliMetadataTests(unittest.TestCase):
                     "prepare",
                     str(skill),
                     "--channels",
-                    "lovstudio",
+                    "workbuddy",
                     "--home",
                     str(base / "unused-home"),
                 ]
             )
 
         self.assertEqual(result.exit_code, 1)
-        self.assertIn("lovstudio blocked", result.stdout)
-        self.assertIn("missing_inputs=accounts.lovstudio,source_url", result.stdout)
+        self.assertIn("workbuddy blocked", result.stdout)
+        self.assertIn("accounts.workbuddy", result.stdout)
+        self.assertIn("workbuddy_developer_profile_verified", result.stdout)
+        self.assertIn("workbuddy_publication_mode", result.stdout)
+
+    def test_removed_lovstudio_channel_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            skill = make_skill(base / "skill")
+            home = base / "publisher-home"
+            result = run_cli(
+                ["prepare", str(skill), "--channels", "lovstudio", "--home", str(home), "--json"]
+            )
+
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("unknown channel: lovstudio", result.stdout)
+        self.assertFalse(home.exists())
+
+    def test_stored_profile_missing_account_routes_to_browser_observation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            skill = make_skill(base / "skill")
+            profile = source_profile(skill)
+            profile["accounts"] = {}
+            home = make_home(base, profile)
+
+            result = run_cli(
+                ["prepare", str(skill), "--channels", "workbuddy", "--home", str(home), "--json"]
+            )
+
+        self.assertEqual(result.exit_code, 1, result.stderr or result.stdout)
+        attempt = json.loads(result.stdout)["attempts"][0]
+        self.assertEqual(attempt["error_code"], "needs_browser_observation")
+        self.assertEqual(attempt["next_action"], "observe_browser")
+        self.assertEqual(attempt["browser_observable"], ["accounts.workbuddy"])
+
+    def test_prepare_preserves_ready_channels_when_one_channel_needs_browser_observation(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            base = Path(temp_dir)
+            skill = make_skill(base / "skill")
+            profile = source_profile(skill)
+            profile.update(
+                {
+                    "accounts": {
+                        "workbuddy": "primary",
+                        "skillpay": "pay-primary",
+                        "xiaohongshu-red-skill": "red-primary",
+                    },
+                    "creator_account_alias": "pay-primary",
+                    "creator_identity_verified": True,
+                    "required_agreements_verified": False,
+                    "price_format_verified": True,
+                    "form_contract_verified": True,
+                }
+            )
+            profile_path = base / "profile.json"
+            profile_path.write_text(json.dumps(profile), encoding="utf-8")
+            home = base / "publisher-home"
+
+            result = run_cli(
+                [
+                    "prepare",
+                    str(skill),
+                    "--profile",
+                    str(profile_path),
+                    "--channels",
+                    "workbuddy",
+                    "skillpay",
+                    "xiaohongshu-red-skill",
+                    "--home",
+                    str(home),
+                    "--json",
+                ]
+            )
+
+        self.assertEqual(result.exit_code, 1, result.stderr or result.stdout)
+        attempts = {item["channel"]: item for item in json.loads(result.stdout)["attempts"]}
+        self.assertEqual(attempts["skillpay"]["error_code"], "needs_browser_observation")
+        self.assertEqual(attempts["skillpay"]["browser_observable"], ["required_agreements_verified"])
+        self.assertNotEqual(attempts["workbuddy"]["state"], "blocked")
+        self.assertNotEqual(attempts["xiaohongshu-red-skill"]["state"], "blocked")
 
     def test_prepare_profile_matches_equivalent_home_profile(self):
         with tempfile.TemporaryDirectory() as temp_dir:

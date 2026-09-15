@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import argparse
 from dataclasses import replace
+import hashlib
 import json
 import os
 from pathlib import Path
+import subprocess
+import sys
 import tempfile
 from typing import Any, Mapping, Optional, Sequence
 
@@ -14,7 +17,7 @@ from .adapters import ChannelContractError, ChannelPolicyError
 from .ai_review import AIReviewError, load_ai_review, persist_ai_review
 from .archive import build_artifact, verify_artifact
 from .channels import CHANNEL_KEYS, get_channel_adapter
-from .confirmations import SubmissionPlanIncomplete, finalize_submission_plan
+from .confirmations import SubmissionPlanIncomplete, finalize_submission_plan, upload_digest
 from .dossier import DossierError, apply_channel_edits, build_dossier, render_dossier_json, render_dossier_markdown, validate_channel_edits
 from .evidence import (
     EvidenceProfileError,
@@ -44,15 +47,15 @@ from .profile_builder import (
     STORED_PROFILE_ORIGIN,
     apply_source_defaults,
     build_generated_profile,
-    missing_generated_profile_inputs,
+    missing_profile_inputs,
 )
 from .quality import run_quality
 from .redaction import redact_text
 from .source import SourceContractError, SourceSnapshot, load_source
 
 
-VERSION = "0.2.0"
-COMMANDS = ("check", "prepare", "finalize", "authorize", "record", "status", "export")
+VERSION = "0.6.3"
+COMMANDS = ("check", "prepare", "batch", "authorize-batch", "resume", "monitor", "finalize", "authorize", "record", "status", "export")
 
 _BLOCK_EXIT = 1
 _ERROR_EXIT = 2
@@ -143,6 +146,32 @@ def build_parser() -> argparse.ArgumentParser:
     prepare_parser.add_argument("--exec-digest")
     prepare_parser.add_argument("--json", action="store_true")
     prepare_parser.set_defaults(_handler=_handle_prepare, _command_parser=prepare_parser)
+
+    batch_parser = subparsers.add_parser("batch", help="Prepare every source/channel entry in a batch manifest.")
+    batch_parser.add_argument("manifest")
+    batch_parser.add_argument("--home")
+    batch_parser.add_argument("--json", action="store_true")
+    batch_parser.set_defaults(_handler=_handle_batch, _command_parser=batch_parser)
+
+    batch_authorize_parser = subparsers.add_parser("authorize-batch", help="Record one acknowledgement for every unchanged digest in a batch receipt.")
+    batch_authorize_parser.add_argument("receipt")
+    batch_authorize_parser.add_argument("--home")
+    batch_authorize_parser.add_argument("--kind", choices=("upload", "submission"), required=True)
+    batch_authorize_parser.add_argument("--confirmed-at")
+    batch_authorize_parser.add_argument("--json", action="store_true")
+    batch_authorize_parser.set_defaults(_handler=_handle_batch_authorize, _command_parser=batch_authorize_parser)
+
+    resume_parser = subparsers.add_parser("resume", help="Read resumable attempts and emit bounded continuation packets.")
+    resume_parser.add_argument("--home")
+    resume_parser.add_argument("--source")
+    resume_parser.add_argument("--json", action="store_true")
+    resume_parser.set_defaults(_handler=_handle_resume, _command_parser=resume_parser)
+
+    monitor_parser = subparsers.add_parser("monitor", help="Apply read-only platform observations and record real transitions only.")
+    monitor_parser.add_argument("observations")
+    monitor_parser.add_argument("--home")
+    monitor_parser.add_argument("--json", action="store_true")
+    monitor_parser.set_defaults(_handler=_handle_monitor, _command_parser=monitor_parser)
 
     finalize_parser = subparsers.add_parser("finalize", help="Persist verified observed fields and finalize a plan.")
     finalize_parser.add_argument("run_id")
@@ -267,27 +296,20 @@ def _handle_prepare(args: argparse.Namespace) -> int:
             return _BLOCK_EXIT
 
         selected_channels = _normalize_channels(args.channels)
-        missing_inputs = (
-            missing_generated_profile_inputs(profile, selected_channels)
-            if profile_origin == GENERATED_PROFILE_ORIGIN
-            else ()
-        )
-        if missing_inputs:
-            payload = {
-                "source": _serialize_snapshot(snapshot),
-                "report": _serialize_report(report),
-                "profile": _serialize_profile(profile_origin, missing_inputs),
-                "attempts": [_serialize_missing_input_channel(item) for item in missing_inputs],
-            }
-            _emit(args.json, payload, _render_prepare_text(payload))
-            return _BLOCK_EXIT
         for channel_key in selected_channels:
             validate_channel_edits(_channel_edits(profile, channel_key))
+        missing_inputs = missing_profile_inputs(profile, selected_channels)
+        missing_by_channel = {str(item["channel"]): item for item in missing_inputs}
         dossier = _augment_dossier(build_dossier(snapshot, report, profile), profile)
         attempts: list[dict[str, Any]] = []
         blocked = False
         ledger: Optional[Ledger] = _open_ledger(home, create=False) if _state_db_path(home).is_file() else None
         for channel_key in selected_channels:
+            missing_channel = missing_by_channel.get(channel_key)
+            if missing_channel is not None:
+                attempts.append(_serialize_missing_input_channel(missing_channel))
+                blocked = True
+                continue
             adapter = get_channel_adapter(channel_key)
             artifact: Optional[Artifact] = None
             ownership_claim_ref: Optional[str] = None
@@ -296,7 +318,12 @@ def _handle_prepare(args: argparse.Namespace) -> int:
                 staging = adapter.build_staging(snapshot, dossier)
                 prior = ledger.load_frozen_fields(snapshot.root, channel_key) if ledger is not None else None
                 fields, frozen = apply_channel_edits(dossier, staging.fields, _channel_edits(profile, channel_key), prior)
-                staging = replace(staging, fields=fields)
+                excluded_patterns = _channel_artifact_excludes(profile, channel_key)
+                staging = replace(
+                    staging,
+                    fields=fields,
+                    disclosure={**dict(staging.disclosure), "artifact_policy": {"excluded_patterns": excluded_patterns}},
+                )
                 _validate_local_preview_config(adapter, profile, staging.fields)
                 if ledger is None:
                     ledger = _open_ledger(home, create=True)
@@ -307,8 +334,13 @@ def _handle_prepare(args: argparse.Namespace) -> int:
                     attempts.append(_serialize_concurrent_attempt(channel_key, owner, recovery_commands))
                     continue
                 ownership_claim_ref = owner.claim_ref
-                artifact = _build_attempt_artifact(home, snapshot, channel_key, staging.files)
+                artifact = _build_attempt_artifact(home, snapshot, channel_key, staging.files, excluded_patterns)
                 plan = adapter.build_plan(staging, artifact, account_alias)
+                prior_item = ledger.find_platform_item(snapshot.root, channel_key, account_alias)
+                if prior_item is not None:
+                    disclosure = {**dict(plan.disclosure), "existing_platform_item": dict(prior_item), "recommended_operation": "update"}
+                    plan = replace(plan, disclosure=disclosure, upload_confirmation_digest="")
+                    plan = replace(plan, upload_confirmation_digest=upload_digest(plan))
                 local_preview_plan = _build_local_preview_plan(adapter, profile, plan, artifact)
             except (ChannelContractError, ChannelPolicyError, ArtifactPreparationBlocked) as exc:
                 if artifact is not None:
@@ -355,10 +387,11 @@ def _handle_prepare(args: argparse.Namespace) -> int:
         payload = {
             "source": _serialize_snapshot(snapshot),
             "report": _serialize_report(report),
-            "profile": _serialize_profile(profile_origin),
+            "profile": _serialize_profile(profile_origin, missing_inputs),
             "attempts": attempts,
         }
         _emit(args.json, payload, _render_prepare_text(payload))
+        _refresh_markdown_ledger(home, ledger)
         return _BLOCK_EXIT if blocked else 0
     except (SourceContractError, EvidenceProfileError, DossierError, AIReviewError, ExecutionAuthorizationError) as exc:
         return _emit_error(args.json, exc, _ERROR_EXIT)
@@ -395,6 +428,8 @@ def _handle_finalize(args: argparse.Namespace) -> int:
         updated_plan = ledger.load_submission_plan(args.run_id)
         payload = _serialize_attempt_status(updated_attempt, updated_plan, ledger.load_frozen_fields_for_attempt(args.run_id), ledger)
         _emit(args.json, payload, _render_status_text(payload))
+        _refresh_batch_receipts(home, ledger, args.run_id)
+        _refresh_markdown_ledger(home, ledger)
         return 0
     except (
         FileNotFoundError,
@@ -427,6 +462,7 @@ def _handle_authorize(args: argparse.Namespace) -> int:
         payload["authorized_kind"] = args.kind
         payload["authorized_digest"] = args.digest
         _emit(args.json, payload, _render_status_text(payload))
+        _refresh_markdown_ledger(home, ledger)
         return 0
     except (FileNotFoundError, KeyError, AuthorizationRequired, RecoveryBlocked, ValueError) as exc:
         return _emit_error(args.json, exc, _ERROR_EXIT)
@@ -483,6 +519,7 @@ def _handle_record(args: argparse.Namespace) -> int:
         payload = _serialize_attempt_status(updated_attempt, updated_plan, ledger.load_frozen_fields_for_attempt(args.run_id), ledger)
         payload["recorded_event"] = event_name
         _emit(args.json, payload, _render_status_text(payload))
+        _refresh_markdown_ledger(home, ledger)
         if event_name == "submission_unknown":
             return _SUBMISSION_UNKNOWN_EXIT
         return _BLOCK_EXIT if blocked_result else 0
@@ -526,6 +563,268 @@ def _handle_export(args: argparse.Namespace) -> int:
         return 0
     except (FileNotFoundError, ValueError) as exc:
         return _emit_error(False, exc, _ERROR_EXIT)
+
+
+def _handle_batch(args: argparse.Namespace) -> int:
+    """Prepare a deterministic manifest without weakening per-attempt gates."""
+    try:
+        manifest_path = Path(args.manifest).expanduser().resolve()
+        payload = json.loads(manifest_path.read_text(encoding="utf-8"))
+        entries = payload.get("entries") if isinstance(payload, Mapping) else None
+        if not isinstance(entries, list) or not entries:
+            raise ValueError("batch manifest requires a non-empty entries array")
+        home = _resolve_home(args.home)
+        results = []
+        blocked = False
+        entrypoint = Path(__file__).resolve().parents[1] / "publisher.py"
+        for index, entry in enumerate(entries):
+            if not isinstance(entry, Mapping):
+                raise ValueError("batch entries must be mappings")
+            source = str(entry.get("source", "")).strip()
+            channels = entry.get("channels", ())
+            if not source or isinstance(channels, (str, bytes)) or not isinstance(channels, list):
+                raise ValueError("each batch entry requires source and channels array")
+            command = [sys.executable, str(entrypoint), "prepare", source, "--home", str(home), "--channels"]
+            command.extend(str(channel) for channel in channels)
+            profile = entry.get("profile")
+            if profile:
+                command.extend(("--profile", str(profile)))
+            command.append("--json")
+            completed = subprocess.run(command, text=True, capture_output=True, check=False)
+            try:
+                result_payload = json.loads(completed.stdout)
+            except json.JSONDecodeError:
+                result_payload = {"error": redact_text(completed.stderr or completed.stdout or "prepare failed")}
+            results.append({"index": index, "source": source, "exit_code": completed.returncode, "result": result_payload})
+            blocked = blocked or completed.returncode != 0
+        confirmation_scope = _batch_confirmation_scope(results)
+        batch_id = _batch_id(confirmation_scope["attempts"])
+        receipt = {"batch_id": batch_id, "entries": results, "confirmation_scope": confirmation_scope}
+        batch_path = home / "batches" / (batch_id + ".json")
+        _write_atomic(batch_path, json.dumps(_redact_jsonable(receipt), ensure_ascii=False, sort_keys=True, indent=2) + "\n")
+        _refresh_markdown_ledger(home)
+        _emit(args.json, receipt, "batch {0}: {1} entries".format(batch_id, len(results)))
+        return _BLOCK_EXIT if blocked else 0
+    except (FileNotFoundError, json.JSONDecodeError, ValueError) as exc:
+        return _emit_error(args.json, exc, _ERROR_EXIT)
+
+
+def _handle_resume(args: argparse.Namespace) -> int:
+    """Return recovery packets from durable state without mutating it."""
+    try:
+        home = _resolve_home(args.home)
+        ledger = _open_ledger(home, create=False, read_only=True)
+        source_identifier = _resolve_source_id(args.source) if args.source else None
+        rows = json.loads(ledger.export(source_identifier, "json"))
+        attempts = []
+        for row in rows:
+            attempt, plan = _load_attempt_and_plan(ledger, row["run_id"], row["channel"])
+            attempts.append({
+                **row,
+                "continuation": _continuation_packet(attempt, plan),
+            })
+        payload = {"attempts": attempts}
+        _emit(args.json, payload, _render_source_status_text(payload))
+        return 0
+    except (FileNotFoundError, KeyError, ValueError) as exc:
+        return _emit_error(args.json, exc, _ERROR_EXIT)
+
+
+def _handle_batch_authorize(args: argparse.Namespace) -> int:
+    try:
+        home = _resolve_home(args.home)
+        candidate = Path(args.receipt).expanduser()
+        receipt_path = candidate.resolve() if candidate.is_file() else home / "batches" / (str(args.receipt) + ".json")
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+        scope = receipt.get("confirmation_scope", {}).get("attempts", ()) if isinstance(receipt, Mapping) else ()
+        if not isinstance(scope, list) or not scope:
+            raise ValueError("batch receipt has no confirmation scope")
+        ledger = _open_ledger(home, create=False)
+        pending = []
+        recorded = []
+        for item in scope:
+            if not isinstance(item, Mapping):
+                raise ValueError("batch confirmation entries must be mappings")
+            run_id = str(item.get("run_id", "")).strip()
+            channel = str(item.get("channel", "")).strip()
+            attempt, plan = _load_attempt_and_plan(ledger, run_id, channel)
+            del attempt
+            current = plan.upload_confirmation_digest if args.kind == "upload" else plan.submission_confirmation_digest
+            receipt_digest = item.get(args.kind + "_confirmation_digest")
+            if not current or receipt_digest != current:
+                raise AuthorizationRequired("batch authorization stopped because a digest is missing or changed")
+            pending.append((run_id, args.kind, current, args.confirmed_at or "batch-confirmation"))
+            recorded.append({"run_id": run_id, "channel": channel, "kind": args.kind, "digest": current})
+        ledger.add_authorizations(pending)
+        _refresh_markdown_ledger(home, ledger)
+        payload = {"batch_id": receipt.get("batch_id", ""), "authorized": recorded}
+        _emit(args.json, payload, "authorized {0} {1} digests".format(len(recorded), args.kind))
+        return 0
+    except (FileNotFoundError, KeyError, AuthorizationRequired, RecoveryBlocked, ValueError, json.JSONDecodeError) as exc:
+        return _emit_error(args.json, exc, _ERROR_EXIT)
+
+
+def _handle_monitor(args: argparse.Namespace) -> int:
+    """Ingest read-only observations; unchanged observations remain write-free."""
+    try:
+        home = _resolve_home(args.home)
+        observations = json.loads(Path(args.observations).expanduser().resolve().read_text(encoding="utf-8"))
+        if not isinstance(observations, list):
+            raise ValueError("observations must be a JSON array")
+        ledger = _open_ledger(home, create=False)
+        changed = []
+        unchanged = []
+        for item in observations:
+            if not isinstance(item, Mapping):
+                raise ValueError("each observation must be a mapping")
+            run_id = str(item.get("run_id", "")).strip()
+            channel = str(item.get("channel", "")).strip()
+            event = str(item.get("event", "")).strip().lower()
+            raw_status = str(item.get("raw_status", "")).strip()
+            if not run_id or not channel or not event or not raw_status:
+                raise ValueError("each observation requires run_id, channel, event, and raw_status")
+            attempt, plan = _load_attempt_and_plan(ledger, run_id, channel)
+            target = _EVENT_TO_STATE.get(event)
+            if target is None:
+                raise ValueError("monitor observations accept documented lifecycle events only")
+            adapter = get_channel_adapter(channel)
+            mapped = adapter.map_status(raw_status)
+            if mapped is not None and mapped != target:
+                raise ValueError("raw status maps to a different lifecycle state")
+            evidence = dict(item)
+            supplied_version = str(evidence.get("source_version", "")).strip()
+            if supplied_version and supplied_version != attempt.source_version:
+                raise ValueError("monitor evidence source_version must match the attempt")
+            evidence.setdefault("source_version", attempt.source_version)
+            supplied_product = str(evidence.get("product_id", "")).strip()
+            if supplied_product and plan.platform_id and supplied_product != str(plan.platform_id):
+                raise ValueError("monitor evidence product_id must match the finalized plan")
+            if attempt.product_id:
+                evidence.setdefault("product_id", attempt.product_id)
+            _validate_record_evidence(attempt, plan, event, evidence)
+            if attempt.state == target:
+                unchanged.append({"run_id": run_id, "channel": channel, "state": target.value})
+                continue
+            ledger.transition(run_id, target, event, evidence)
+            changed.append(_serialize_attempt_status(ledger.get_attempt(run_id), ledger.load_submission_plan(run_id), ledger.load_frozen_fields_for_attempt(run_id), ledger))
+        if changed:
+            _refresh_markdown_ledger(home, ledger)
+        payload = {"changed": changed, "unchanged": unchanged, "notification_required": bool(changed)}
+        _emit(args.json, payload, "monitor: {0} changed, {1} unchanged".format(len(changed), len(unchanged)))
+        return 0
+    except (FileNotFoundError, KeyError, InvalidTransition, AuthorizationRequired, RecoveryBlocked, ValueError, json.JSONDecodeError) as exc:
+        return _emit_error(args.json, exc, _ERROR_EXIT)
+
+
+def _batch_id(entries: Sequence[object]) -> str:
+    encoded = json.dumps(entries, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    return "batch-" + hashlib.sha256(encoded).hexdigest()[:16]
+
+
+def _batch_confirmation_scope(results: Sequence[Mapping[str, object]]) -> dict[str, object]:
+    attempts = []
+    for result in results:
+        payload = result.get("result", {})
+        if not isinstance(payload, Mapping):
+            continue
+        for attempt in payload.get("attempts", ()):
+            if not isinstance(attempt, Mapping) or not attempt.get("run_id"):
+                continue
+            attempts.append(
+                {
+                    "run_id": attempt.get("run_id"),
+                    "channel": attempt.get("channel"),
+                    "artifact_sha256": attempt.get("artifact_sha256"),
+                    "upload_confirmation_digest": attempt.get("upload_confirmation_digest"),
+                    "submission_confirmation_digest": attempt.get("submission_confirmation_digest"),
+                }
+            )
+    return {
+        "attempts": attempts,
+        "rule": "One batch acknowledgement may record each listed digest, but never authorizes an unlisted or changed digest.",
+    }
+
+
+def _continuation_packet(attempt, plan: SubmissionPlan) -> dict[str, object]:
+    urls = plan.disclosure.get("official_source_urls", ()) if isinstance(plan.disclosure, Mapping) else ()
+    target_url = str(next(iter(urls), "")) if not isinstance(urls, (str, bytes)) else str(urls)
+    packet = {
+        "next_action": _resume_action(attempt.state),
+        "target_url": target_url,
+        "channel": attempt.channel,
+        "account_alias": attempt.account_alias,
+        "artifact_path": str(plan.artifact.path),
+        "artifact_relative_path": "runs/{0}/artifacts/{1}".format(
+            attempt.attempt_id, Path(plan.artifact.path).name
+        ),
+        "artifact_sha256": plan.artifact.sha256,
+        "artifact_files": list(plan.artifact.files),
+        "fields": dict(plan.fields),
+        "upload_digest": plan.upload_confirmation_digest,
+        "expected_intermediate_state": _resume_action(attempt.state),
+        "manual_fallback": list(plan.manual_fallback),
+    }
+    if plan.platform_id:
+        packet.update(
+            {
+                "platform_id": plan.platform_id,
+                "observed_fields": dict(plan.observed_fields),
+                "final_action": plan.final_action,
+                "submission_digest": plan.submission_confirmation_digest,
+            }
+        )
+    return _redact_jsonable(packet)
+
+
+def _resume_action(state: PublishState) -> str:
+    return {
+        PublishState.AWAITING_UPLOAD_CONFIRMATION: "confirm_upload",
+        PublishState.UPLOADED: "readback_uploaded_artifact",
+        PublishState.PARSING: "readback_parsing_status",
+        PublishState.AWAITING_SUBMISSION_CONFIRMATION: "confirm_submit",
+        PublishState.SUBMISSION_UNKNOWN: "readback_submission_status",
+        PublishState.SUBMITTED: "monitor_review",
+        PublishState.UNDER_REVIEW: "monitor_review",
+        PublishState.CHANGES_REQUESTED: "revise_channel_artifact",
+        PublishState.REJECTED: "revise_channel_artifact",
+        PublishState.APPROVED: "verify_public_listing",
+        PublishState.LIVE: "monitor_public_version",
+    }.get(state, "prepare_or_resolve_blocker")
+
+
+def _refresh_markdown_ledger(home: Path, ledger: Optional[Ledger] = None) -> Optional[Path]:
+    database = _state_db_path(home)
+    if not database.is_file():
+        return None
+    active = ledger or Ledger.open_readonly(database)
+    output = home / "state" / "publishing-ledger.md"
+    try:
+        _write_atomic(output, active.export(None, "markdown"))
+    finally:
+        if ledger is None:
+            active.close()
+    return output
+
+
+def _refresh_batch_receipts(home: Path, ledger: Ledger, run_id: str) -> None:
+    batch_dir = home / "batches"
+    if not batch_dir.is_dir():
+        return
+    attempt = ledger.get_attempt(run_id)
+    plan = ledger.load_submission_plan(run_id)
+    for path in sorted(batch_dir.glob("batch-*.json")):
+        try:
+            receipt = json.loads(path.read_text(encoding="utf-8"))
+            scope = receipt.get("confirmation_scope", {}).get("attempts", ())
+        except (OSError, json.JSONDecodeError, AttributeError):
+            continue
+        changed = False
+        for item in scope if isinstance(scope, list) else ():
+            if isinstance(item, dict) and item.get("run_id") == run_id and item.get("channel") == attempt.channel:
+                item["submission_confirmation_digest"] = plan.submission_confirmation_digest
+                changed = True
+        if changed:
+            _write_atomic(path, json.dumps(_redact_jsonable(receipt), ensure_ascii=False, sort_keys=True, indent=2) + "\n")
 
 
 def _load_local_inputs(
@@ -663,6 +962,26 @@ def _channel_edits(profile: Mapping[str, object], channel_key: str) -> Mapping[s
     return {str(key): "" if value is None else str(value) for key, value in channel_edits.items()}
 
 
+def _channel_artifact_excludes(profile: Mapping[str, object], channel_key: str) -> tuple[str, ...]:
+    policies = profile.get("channel_artifact_policy", {})
+    if policies is None:
+        return ()
+    if not isinstance(policies, Mapping):
+        raise ValueError("profile.channel_artifact_policy must be a mapping")
+    policy = policies.get(channel_key, {})
+    if policy is None:
+        return ()
+    if not isinstance(policy, Mapping):
+        raise ValueError("profile.channel_artifact_policy.{0} must be a mapping".format(channel_key))
+    excluded = policy.get("exclude", ())
+    if isinstance(excluded, (str, bytes)) or not isinstance(excluded, Sequence):
+        raise ValueError("channel artifact exclude must be an array")
+    values = tuple(sorted({str(value).strip().replace("\\", "/") for value in excluded if str(value).strip()}))
+    if any(value.startswith("/") or ".." in Path(value).parts for value in values):
+        raise ValueError("channel artifact exclude patterns must be safe relative globs")
+    return values
+
+
 def _resolve_home(explicit: Optional[str]) -> Path:
     return resolve_publisher_home(None if explicit is None else Path(explicit), os.environ)
 
@@ -687,12 +1006,18 @@ def _open_ledger(home: Path, *, create: bool, read_only: bool = False) -> Ledger
     return Ledger.open(path)
 
 
-def _build_attempt_artifact(home: Path, snapshot: SourceSnapshot, channel: str, staging_files: Mapping[str, bytes]) -> Artifact:
+def _build_attempt_artifact(
+    home: Path,
+    snapshot: SourceSnapshot,
+    channel: str,
+    staging_files: Mapping[str, bytes],
+    excluded_patterns: Sequence[str] = (),
+) -> Artifact:
     scratch_root = home / ".scratch-artifacts"
     scratch_root.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(dir=scratch_root) as temp_dir:
         try:
-            temp_artifact = build_artifact(snapshot, channel, staging_files, Path(temp_dir))
+            temp_artifact = build_artifact(snapshot, channel, staging_files, Path(temp_dir), excluded_patterns)
         except ValueError as exc:
             raise ArtifactPreparationBlocked("artifact_build_failed", str(exc)) from exc
         findings = verify_artifact(temp_artifact, temp_artifact.files)
@@ -1134,6 +1459,10 @@ def _serialize_profile(
             {
                 "channel": str(item["channel"]),
                 "fields": [str(field) for field in item.get("fields", ())],
+                "browser_observable": [str(field) for field in item.get("browser_observable", ())],
+                "agent_draft": [str(field) for field in item.get("agent_draft", ())],
+                "user_confirmation": [str(field) for field in item.get("user_confirmation", ())],
+                "next_action": str(item.get("next_action", "review")),
             }
             for item in missing_inputs
         ],
@@ -1143,18 +1472,39 @@ def _serialize_profile(
 def _serialize_missing_input_channel(item: Mapping[str, object]) -> dict[str, Any]:
     channel = str(item["channel"])
     fields = tuple(str(field) for field in item.get("fields", ()))
-    field_list = ", ".join(fields)
+    browser_fields = tuple(str(field) for field in item.get("browser_observable", ()))
+    draft_fields = tuple(str(field) for field in item.get("agent_draft", ()))
+    confirmation_fields = tuple(str(field) for field in item.get("user_confirmation", ()))
+    if browser_fields:
+        error_code = "needs_browser_observation"
+        error = "Observe the signed-in creator page before channel preparation."
+        fallback = [
+            "Open the documented creator page in the user's current browser and confirm the visible account matches the intended account.",
+            "Read only visible account/form facts, then rerun preparation with the private profile updated by the agent.",
+        ]
+    else:
+        error_code = "user_confirmation_required"
+        error = "The agent can draft these fields, but the user must confirm the final values."
+        fallback = [
+            "Draft the missing fields from the source and channel contract, then ask the user for a final confirmation.",
+        ]
+    if draft_fields:
+        fallback.append("Agent-draft fields: {0}.".format(", ".join(draft_fields)))
+    if confirmation_fields:
+        fallback.append("User-confirmed fields: {0}.".format(", ".join(confirmation_fields)))
+    fallback.append("Do not request or store passwords, cookies, tokens, QR payloads, or browser storage.")
     return {
         "run_id": "",
         "channel": channel,
         "state": PublishState.BLOCKED.value,
-        "error_code": "missing_user_input",
-        "error": "Channel preparation needs non-secret facts that cannot be inferred safely.",
+        "error_code": error_code,
+        "error": error,
         "missing_inputs": list(fields),
-        "manual_fallback": [
-            "Provide or observe only these fields: {0}.".format(field_list),
-            "Use any browser for visible account or form checks; do not share passwords, cookies, tokens, QR payloads, or browser storage.",
-        ],
+        "browser_observable": list(browser_fields),
+        "agent_draft": list(draft_fields),
+        "user_confirmation": list(confirmation_fields),
+        "next_action": str(item.get("next_action", "review")),
+        "manual_fallback": fallback,
         "remote_write_recorded": False,
     }
 
@@ -1263,6 +1613,8 @@ def _render_prepare_text(payload: Mapping[str, Any]) -> str:
         missing = item.get("missing_inputs", ())
         if missing:
             line += " missing_inputs={0}".format(",".join(str(field) for field in missing))
+        if item.get("next_action"):
+            line += " next_action={0}".format(item["next_action"])
         lines.append(line)
     return "\n".join(lines)
 

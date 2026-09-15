@@ -31,12 +31,21 @@ class ArchiveTests(unittest.TestCase):
             base = Path(directory)
             snapshot = self._snapshot(base / "source")
             staging = {"SKILL.md": (snapshot.root / "SKILL.md").read_bytes(), "README.md": b"excluded"}
-            first = build_artifact(snapshot, "lovstudio", staging, base / "a")
-            second = build_artifact(snapshot, "lovstudio", staging, base / "b")
+            first = build_artifact(snapshot, "skillpay", staging, base / "a")
+            second = build_artifact(snapshot, "skillpay", staging, base / "b")
             self.assertEqual(first.sha256, second.sha256)
             self.assertEqual(first.files, second.files)
             self.assertEqual(first.files, ("LICENSE", "SKILL.md", "scripts/run.py"))
             self.assertEqual(verify_artifact(first, first.files), ())
+
+    def test_channel_edition_excludes_matching_runtime_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            snapshot = self._snapshot(base / "source")
+            artifact = build_artifact(snapshot, "skillpay", {}, base / "out", ("scripts/**",))
+
+            self.assertEqual(artifact.files, ("LICENSE", "SKILL.md"))
+            self.assertEqual(verify_artifact(artifact, artifact.files), ())
 
     def test_generic_runtime_allowlist_applies_exclusions_before_directory_allow(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -56,7 +65,7 @@ class ArchiveTests(unittest.TestCase):
                 **{**snapshot.__dict__, "files": snapshot.files + tuple(sorted(extra))}
             )
 
-            artifact = build_artifact(snapshot, "lovstudio", {}, base / "out")
+            artifact = build_artifact(snapshot, "skillpay", {}, base / "out")
 
         self.assertIn("references/guide.md", artifact.files)
         self.assertNotIn("scripts/private/key.txt", artifact.files)
@@ -68,8 +77,9 @@ class ArchiveTests(unittest.TestCase):
             base = Path(directory)
             snapshot = self._snapshot(base / "source")
             staging = {
-                "skills/demo-skill/SKILL.md": b"---\nname: demo-skill\n---\n",
-                "skills/demo-skill/references/guide.md": b"Nested guide\n",
+                "demo-skill/SKILL.md": b"---\nname: demo-skill\n---\n",
+                "demo-skill/_skillhub_meta.json": b"{}\n",
+                "demo-skill/references/guide.md": b"Nested guide\n",
             }
             artifact = build_artifact(snapshot, "workbuddy", staging, base / "out")
             with zipfile.ZipFile(artifact.path) as archive:
@@ -77,14 +87,67 @@ class ArchiveTests(unittest.TestCase):
             self.assertEqual(
                 tuple(sorted(names)),
                 (
-                    "LICENSE",
-                    "skills/demo-skill/SKILL.md",
-                    "skills/demo-skill/references/guide.md",
+                    "demo-skill/LICENSE",
+                    "demo-skill/SKILL.md",
+                    "demo-skill/_skillhub_meta.json",
+                    "demo-skill/references/guide.md",
                 ),
             )
-            self.assertIn("skills/demo-skill/SKILL.md", names)
-            self.assertIn("skills/demo-skill/references/guide.md", names)
+            self.assertIn("demo-skill/SKILL.md", names)
+            self.assertIn("demo-skill/references/guide.md", names)
             self.assertEqual(verify_artifact(artifact, artifact.files), ())
+
+    def test_workbuddy_exclusions_apply_to_nested_staging_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            snapshot = self._snapshot(base / "source")
+            staging = {
+                "demo-skill/SKILL.md": b"---\nname: demo-skill\n---\n",
+                "demo-skill/_skillhub_meta.json": b"{}\n",
+                "demo-skill/scripts/run.py": b"print('excluded')\n",
+            }
+            artifact = build_artifact(snapshot, "workbuddy", staging, base / "out", ("scripts/**",))
+            self.assertNotIn("demo-skill/scripts/run.py", artifact.files)
+            self.assertEqual(verify_artifact(artifact, artifact.files), ())
+
+    def test_workbuddy_verifier_rejects_root_level_runtime_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            path = base / "root.zip"
+            with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr("SKILL.md", b"---\nname: demo-skill\n---\n")
+                archive.writestr("LICENSE", b"MIT\n")
+                archive.writestr("_skillhub_meta.json", b"{}\n")
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            files = ("LICENSE", "SKILL.md", "_skillhub_meta.json")
+            path.with_name(path.name + ".manifest.json").write_text(
+                json.dumps({"sha256": digest, "size_bytes": path.stat().st_size, "files": list(files)}),
+                encoding="utf-8",
+            )
+            artifact = Artifact("workbuddy", path, digest, path.stat().st_size, files)
+            codes = {finding.code for finding in verify_artifact(artifact, files)}
+            self.assertIn("workbuddy_single_root_required", codes)
+            self.assertIn("archive_unexpected_file", codes)
+
+    def test_workbuddy_archive_resolves_to_installable_single_root(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            snapshot = self._snapshot(base / "source")
+            staging = {
+                "demo-skill/SKILL.md": b"---\nname: demo-skill\n---\n",
+                "demo-skill/_skillhub_meta.json": b"{}\n",
+            }
+            artifact = build_artifact(snapshot, "workbuddy", staging, base / "out")
+            extracted = base / "extracted"
+            with zipfile.ZipFile(artifact.path) as archive:
+                archive.extractall(extracted)
+
+            entries = tuple(extracted.iterdir())
+            install_source = entries[0] if len(entries) == 1 and entries[0].is_dir() else extracted
+            self.assertEqual(entries[0].name, "demo-skill")
+            self.assertTrue((install_source / "SKILL.md").is_file())
+            self.assertTrue((install_source / "LICENSE").is_file())
+            self.assertTrue((install_source / "_skillhub_meta.json").is_file())
 
     def test_workbuddy_rejects_other_skill_package_name(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -106,7 +169,7 @@ class ArchiveTests(unittest.TestCase):
             snapshot = self._snapshot(base / "source")
             for relative in rejected:
                 with self.subTest(relative=relative), self.assertRaisesRegex(ValueError, "workbuddy_package_path_invalid"):
-                    build_artifact(snapshot, "workbuddy", {f"skills/demo-skill/{relative}": b"bad"}, base / "out")
+                    build_artifact(snapshot, "workbuddy", {f"demo-skill/{relative}": b"bad"}, base / "out")
 
     def test_symlink_and_parent_member_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -127,8 +190,8 @@ class ArchiveTests(unittest.TestCase):
             base = Path(directory)
             snapshot = self._snapshot(base / "source")
             with self.assertRaisesRegex(ValueError, "license_mismatch"):
-                build_artifact(snapshot, "lovstudio", {"LICENSE": b"wrong"}, base / "out")
-            artifact = build_artifact(snapshot, "lovstudio", {}, base / "out")
+                build_artifact(snapshot, "skillpay", {"LICENSE": b"wrong"}, base / "out")
+            artifact = build_artifact(snapshot, "skillpay", {}, base / "out")
             artifact.path.with_name(artifact.path.name + ".manifest.json").write_text("{}", encoding="utf-8")
             self.assertIn("artifact_manifest_mismatch", {f.code for f in verify_artifact(artifact, artifact.files)})
 
@@ -152,7 +215,7 @@ class ArchiveTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             base = Path(directory)
             snapshot = self._snapshot(base / "source")
-            artifact = build_artifact(snapshot, "lovstudio", {}, base / "out")
+            artifact = build_artifact(snapshot, "skillpay", {}, base / "out")
             manifest_path = artifact.path.with_name(artifact.path.name + ".manifest.json")
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
             manifest["size_bytes"] += 1
@@ -169,7 +232,7 @@ class ArchiveTests(unittest.TestCase):
             linked.symlink_to(target)
             symlink_snapshot = SourceSnapshot(**{**snapshot.__dict__, "files": snapshot.files + ("scripts/linked.py",)})
             with self.assertRaisesRegex(ValueError, "invalid_source_member"):
-                build_artifact(symlink_snapshot, "lovstudio", {}, base / "out")
+                build_artifact(symlink_snapshot, "skillpay", {}, base / "out")
 
     def test_source_intermediate_directory_symlink_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -183,7 +246,7 @@ class ArchiveTests(unittest.TestCase):
             scripts.symlink_to(outside, target_is_directory=True)
             symlink_snapshot = SourceSnapshot(**{**snapshot.__dict__, "files": ("LICENSE", "SKILL.md", "scripts/run.py")})
             with self.assertRaisesRegex(ValueError, "invalid_source_member"):
-                build_artifact(symlink_snapshot, "lovstudio", {}, base / "out")
+                build_artifact(symlink_snapshot, "skillpay", {}, base / "out")
 
 
 if __name__ == "__main__":

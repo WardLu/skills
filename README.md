@@ -25,9 +25,9 @@ Choose a Skill by the task you want to complete:
 | `codex-cross-provider-session-repair` | Recover an old Codex Desktop conversation after a provider, import, or fork problem. | `0.7.6` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
 | `codex-doctor` | Analyze local Codex session telemetry and find evidence-backed workflow improvements. | `0.1.2` | [English](codex-doctor/README.md) · [简体中文](codex-doctor/README.zh-CN.md) |
 | `github-repo-i18n` | Keep selected repository documentation aligned across locales. | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
-| `public-release-gate` | Review release metadata, artifacts, licenses, deployment state, and attachments. | `0.1.2` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
+| `public-release-gate` | Review release metadata, artifacts, licenses, deployment state, and attachments. | `0.1.4` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
 | `public-repo-git-gate` | Check public content and Git boundaries before commit, push, or pull request. | `0.1.2` | [English](public-repo-git-gate/README.md) · [简体中文](public-repo-git-gate/README.zh-CN.md) |
-| `shadow-skill-publisher` | Validate, package, and track a local Agent Skill before manual publication. | `0.2.0` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
+| `shadow-skill-publisher` | Validate, package, and track a local Agent Skill before manual publication. | `0.6.3` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
 | `test-scope-routing` | Select the smallest sufficient validation scope for a change. | `0.1.2` | [English](test-scope-routing/README.md) · [简体中文](test-scope-routing/README.zh-CN.md) |
 
 ## Install

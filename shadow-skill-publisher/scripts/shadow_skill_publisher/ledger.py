@@ -72,6 +72,7 @@ _VERIFIED_STATES = frozenset(
     )
 )
 _ROW_COLUMNS = (
+    "run_id",
     "status",
     "raw_status",
     "source_id",
@@ -179,6 +180,9 @@ class Ledger:
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         return cls(database_path, connection)
+
+    def close(self) -> None:
+        self._connection.close()
 
     def create_attempt(
         self,
@@ -301,6 +305,28 @@ class Ledger:
             published_at=row["published_at"],
             last_verified_at=row["last_verified_at"],
         )
+
+    def find_platform_item(self, source_root: Path, channel: str, account_alias: str) -> Optional[Mapping[str, str]]:
+        """Return the latest known remote identity for create-vs-update routing."""
+        row = self._connection.execute(
+            """
+            SELECT product_id, public_url, source_version, state
+            FROM attempts
+            WHERE source_id = ? AND channel = ? AND account_alias = ?
+              AND product_id IS NOT NULL AND TRIM(product_id) != ''
+            ORDER BY COALESCE(last_verified_at, created_at) DESC, created_at DESC
+            LIMIT 1
+            """,
+            (build_source_id(Path(source_root)), str(channel), str(account_alias)),
+        ).fetchone()
+        if row is None:
+            return None
+        return {
+            "platform_id": str(row["product_id"]),
+            "public_url": str(row["public_url"] or ""),
+            "source_version": str(row["source_version"]),
+            "state": str(row["state"]),
+        }
 
     def save_submission_plan(self, attempt_id: str, plan: SubmissionPlan) -> None:
         attempt = self.get_attempt(attempt_id)
@@ -597,6 +623,35 @@ class Ledger:
                 ),
             )
 
+    def add_authorizations(self, entries: Iterable[tuple[str, str, str, str]]) -> None:
+        """Validate a complete batch first, then persist every authorization atomically."""
+
+        normalized = tuple((str(a), str(k), str(d), str(c)) for a, k, d, c in entries)
+        if not normalized:
+            raise ValueError("authorization batch must not be empty")
+        timestamp = _utcnow()
+        with self._immediate_transaction():
+            for attempt_id, kind, digest, confirmed_at in normalized:
+                if kind not in {"upload", "submission"}:
+                    raise ValueError("kind must be upload or submission")
+                if not digest or not confirmed_at:
+                    raise ValueError("digest and confirmed_at must be non-empty")
+                self.get_attempt(attempt_id)
+                self.require_no_active_blockers(attempt_id)
+                plan = self.load_submission_plan(attempt_id)
+                expected = plan.upload_confirmation_digest if kind == "upload" else plan.submission_confirmation_digest
+                if not expected or digest != expected:
+                    raise AuthorizationRequired(f"{kind} authorization must match the current persisted plan digest")
+            for attempt_id, kind, digest, confirmed_at in normalized:
+                self._connection.execute(
+                    "INSERT INTO authorizations (attempt_id, kind, digest, confirmed_at, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (attempt_id, kind, digest, confirmed_at, timestamp),
+                )
+                self._connection.execute(
+                    "INSERT INTO events (attempt_id, from_state, to_state, event, evidence_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (attempt_id, None, None, "authorization_added", _dump_json({"kind": kind, "digest": digest, "confirmed_at": confirmed_at}), timestamp),
+                )
+
     def require_authorization(self, attempt_id: str, kind: str, digest: str) -> None:
         """Require an exact current authorization without mutating ledger state."""
 
@@ -868,12 +923,14 @@ class Ledger:
             return stream.getvalue()
         if format_name in {"markdown", "md"}:
             lines = [
-                "| Status | Raw Status | Skill | Version | Channel | Alias | Product ID | Public URL | Artifact | Created At | Submitted At | Approved At | Published At | Last Verified At | Next Action |",
-                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
+                "# Skill publishing ledger",
+                "",
+                "| Run ID | Status | Raw Status | Skill | Version | Channel | Alias | Product ID | Public URL | Artifact | Created At | Submitted At | Approved At | Published At | Last Verified At | Next Action |",
+                "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
             ]
             for row in rows:
                 lines.append(
-                    "| {status} | {raw_status} | {skill_name} | {version} | {channel} | {account_alias} | {product_id} | {public_url} | {artifact_sha256} | {created_at} | {submitted_at} | {approved_at} | {published_at} | {last_verified_at} | {next_action} |".format(
+                    "| {run_id} | {status} | {raw_status} | {skill_name} | {version} | {channel} | {account_alias} | {product_id} | {public_url} | {artifact_sha256} | {created_at} | {submitted_at} | {approved_at} | {published_at} | {last_verified_at} | {next_action} |".format(
                         **{key: row.get(key, "") or "" for key in row}
                     )
                 )
@@ -919,6 +976,7 @@ class Ledger:
             if latest_plan is not None:
                 final_action = _string_or_none(latest_plan.get("final_action"))
             exported = {
+                "run_id": row["attempt_id"],
                 "status": row["state"],
                 "raw_status": row["raw_status"] or "",
                 "source_id": row["source_id"],

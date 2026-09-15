@@ -3,7 +3,7 @@ name: codex-cross-provider-session-repair
 description: Repair Codex Desktop sessions that fail after switching model providers or importing/forking old conversations. Use this skill whenever a user mentions an old Codex session becoming invalid, “model provider not found”, “Codex cannot load config.toml”, remote context compaction 404s, “Item with id rs_... not found”, repeated reconnecting during resume, or a migrated Codex conversation that cannot continue—even when the user only asks to inspect or explain the failure. Diagnose the target session across its JSONL rollout, root state_5.sqlite, config.toml, and logs_2.sqlite, then make a target-scoped backup-first repair with verification and restart instructions.
 license: MIT
 metadata:
-  version: "0.7.5"
+  version: "0.7.6"
   repository: "https://github.com/WardLu/skills/tree/main/codex-cross-provider-session-repair"
   maintainer: "Ward Lu"
 ---

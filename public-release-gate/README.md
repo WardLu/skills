@@ -1,6 +1,6 @@
 # Public Release Gate
 
-[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![Version 0.1.2](https://img.shields.io/badge/version-0.1.2-2563eb.svg)](VERSION) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![Version 0.1.4](https://img.shields.io/badge/version-0.1.4-2563eb.svg)](VERSION) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 `public-release-gate` reviews a public repository release as a complete
 deliverable. It checks the source, final artifacts, release page, and deployed

@@ -136,16 +136,19 @@ def _claims(snapshot: SourceSnapshot, profile: Mapping[str, object], evidence_id
 
 
 def _commercial(profile: Mapping[str, object]) -> tuple[str, Optional[str]]:
-    pricing = profile.get("commercial", profile.get("pricing", {}))
+    policy = profile.get("business_policy", {})
+    if not isinstance(policy, Mapping):
+        raise DossierError("business_policy must be a mapping")
+    pricing = profile.get("commercial", profile.get("pricing", policy))
     if not isinstance(pricing, Mapping):
         pricing = {}
-    mode = str(profile.get("commercial_mode", pricing.get("mode", "free"))).strip().lower()
+    mode = str(profile.get("commercial_mode", pricing.get("mode", policy.get("default_mode", "free")))).strip().lower()
     if mode == "per_run":
         raise DossierError("per_run commercial mode is not allowed in P0")
     if mode not in {"free", "one_time"}:
         raise DossierError("commercial_mode must be free or one_time")
-    price = profile.get("price", pricing.get("price"))
-    confirmed = profile.get("author_confirmed", pricing.get("author_confirmed", profile.get("commercial_confirmed")))
+    price = profile.get("price", pricing.get("price", policy.get("default_price")))
+    confirmed = profile.get("author_confirmed", pricing.get("author_confirmed", profile.get("commercial_confirmed", policy.get("confirmed"))))
     if mode == "one_time" and confirmed is not True:
         raise DossierError("one_time pricing requires author confirmation")
     return mode, None if price is None else str(price)

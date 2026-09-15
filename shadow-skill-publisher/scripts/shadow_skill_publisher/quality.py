@@ -38,6 +38,7 @@ _CREDENTIAL_URL = re.compile(
 _UNIX_HOME = re.compile(r"(?<![\w])/(?:Users|home)/[^/\s\\]+", re.IGNORECASE)
 _WINDOWS_HOME = re.compile(r"(?<![\w])[A-Za-z]:[\\/]Users[\\/][^\\/\s]+")
 _PRIVATE_DIR_NAMES = {".git", ".shadow-skill-publisher", "internal", "private"}
+_PACKAGE_EXCLUDED_DIR_NAMES = {"tests", "__pycache__"}
 _NETWORK_COMMANDS = {"curl", "wget", "ping", "ssh", "scp", "rsync"}
 _DANGEROUS_WRITE_COMMANDS = {"rm", "mv", "dd", "mkfs", "chmod", "chown"}
 _GIT_NETWORK_SUBCOMMANDS = {"push", "pull", "fetch", "clone", "remote", "submodule", "ls-remote"}
@@ -143,6 +144,8 @@ def _scan_source(snapshot: SourceSnapshot) -> list[Finding]:
     root = snapshot.root.resolve()
     for relative in snapshot.files:
         if _path_issue(relative) is not None:
+            continue
+        if any(part.lower() in _PACKAGE_EXCLUDED_DIR_NAMES for part in PurePosixPath(relative).parts):
             continue
         file_path = root / relative
         try:

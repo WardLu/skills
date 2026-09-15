@@ -70,6 +70,8 @@ Every first-party publishing adapter must satisfy this shared contract before an
   - documented status mappings;
   - public verification signals.
 - `build_staging()` may also emit channel-scoped files through `render_files(snapshot, dossier)`, which defaults to an empty mapping in the base adapter.
+- Verified field limits and category sets are preflight gates. Listing assets are referenced from the private profile, checked for existence, format, size, and optional SHA-256, and represented in the plan only by non-secret receipts.
+- Channel artifact policies may exclude safe relative globs from the canonical source snapshot. The exclusion list is recorded in the disclosure and therefore bound into the upload digest; required runtime files cannot be excluded.
 - If required fields are missing or unknown fields appear outside the declared required plus optional sets, the adapter must raise `ChannelContractError` with code `channel_contract_unverified`.
 - On `channel_contract_unverified`, the workflow must stop guessing selectors or submit actions and fall back to the adapter's manual instructions.
 - If the live surface reaches login, CAPTCHA, QR scan, a platform confirmation wall, user takeover, or an inactive browser space, the workflow must pause and hand off instead of continuing heuristically.
@@ -84,16 +86,16 @@ Every first-party publishing adapter must satisfy this shared contract before an
 
 ## Registry
 
-The registry is keyed by the five CLI channel names:
+The registry is keyed by the CLI channel names:
 
-- `lovstudio`
+- `coze-skill-store`
 - `workbuddy`
 - `skillpay`
 - `zhihu-ai-works`
 - `xiaohongshu-red-skill`
 
 - Verified channel adapters currently exist for:
-  - `lovstudio`
+  - `coze-skill-store`
   - `workbuddy`
   - `skillpay`
   - `xiaohongshu-red-skill`

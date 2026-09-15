@@ -62,6 +62,43 @@ class ConfirmationDigestTests(unittest.TestCase):
         self.assertNotEqual(upload_digest(self.plan), upload_digest(replace(self.plan, account_alias="other")))
         self.assertNotEqual(upload_digest(self.plan), upload_digest(replace(self.plan, artifact=self.other_artifact)))
 
+    def test_upload_digest_binds_artifact_policy_and_listing_assets(self):
+        with_policy = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "artifact_policy": {"excluded_patterns": ["scripts/**"]},
+            },
+        )
+        with_asset = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "listing_asset_receipts": [
+                    {"role": "cover", "sha256": "a" * 64, "size_bytes": 12, "suffix": ".png"}
+                ],
+            },
+        )
+        self.assertNotEqual(upload_digest(self.plan), upload_digest(with_policy))
+        self.assertNotEqual(upload_digest(self.plan), upload_digest(with_asset))
+
+    def test_upload_digest_binds_channel_contract_checks(self):
+        qualified = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "coze_contract_checks": {"listing_qualification_verified": True},
+            },
+        )
+        unqualified = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "coze_contract_checks": {"listing_qualification_verified": False},
+            },
+        )
+        self.assertNotEqual(upload_digest(qualified), upload_digest(unqualified))
+
     def test_submission_digest_changes_with_price_or_action(self):
         first = finalize_submission_plan(self.plan, "draft-1", {**self.plan.fields, "price": "19"}, "submit_review")
         changed_price = finalize_submission_plan(self.plan, "draft-1", {**self.plan.fields, "price": "29"}, "submit_review")
@@ -205,7 +242,7 @@ class ConfirmationDigestTests(unittest.TestCase):
         self.assertFalse(can_execute_remote_action(malformed, "upload", authorizations=(auth,)))
 
     def test_digest_scope_mismatch_is_rejected_for_channel_account_and_artifact(self):
-        other_channel = replace(self.plan, channel="lovstudio")
+        other_channel = replace(self.plan, channel="skillpay")
         other_account = replace(self.plan, account_alias="secondary")
         other_artifact = replace(self.plan, artifact=self.other_artifact)
 
@@ -232,7 +269,7 @@ class ConfirmationDigestTests(unittest.TestCase):
         )
 
     def test_plan_and_artifact_channel_mismatch_fails_closed(self):
-        mismatched = replace(self.plan, channel="lovstudio")
+        mismatched = replace(self.plan, channel="skillpay")
         authorization = Authorization(kind="upload", digest=upload_digest(mismatched))
 
         self.assertFalse(can_execute_remote_action(mismatched, "upload", authorizations=(authorization,)))
