@@ -1,6 +1,6 @@
 # Shadow Skill Publisher
 
-[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![Version 0.6.1](https://img.shields.io/badge/version-0.6.1-2563eb.svg)](VERSION) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![Version 0.6.2](https://img.shields.io/badge/version-0.6.2-2563eb.svg)](VERSION) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 `shadow-skill-publisher` helps you check an Agent Skill before publication and
 prepare a separate package, listing information, resumable handoff, and status

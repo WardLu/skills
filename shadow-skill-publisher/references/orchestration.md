@@ -34,6 +34,11 @@ fields, confirmation digests, expected next state, and fallback from SQLite.
 Treat this packet as the sole browser handoff input. Login or platform walls
 pause the attempt without changing its stored state.
 
+The user-facing `artifact_path` remains redacted. On the same machine, resolve
+the exact upload target from `artifact_relative_path` beneath the selected
+publisher home; this stable locator avoids exposing a private home directory
+while keeping browser handoff deterministic.
+
 ## Monitor
 
 `monitor` accepts an array of read-only platform observations:

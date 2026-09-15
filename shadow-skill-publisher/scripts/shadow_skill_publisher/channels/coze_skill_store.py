@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from ..adapters import BaseChannelAdapter, ChannelContractError
-from ..models import Dossier, PublishState, SourceSnapshot
+from ..models import Artifact, ChannelStaging, Dossier, PublishState, SourceSnapshot, SubmissionPlan
 
 
 class CozeSkillStoreAdapter(BaseChannelAdapter):
@@ -105,8 +105,32 @@ class CozeSkillStoreAdapter(BaseChannelAdapter):
             "payment_account_verified": dossier.facts.get("coze_payment_verified") is True,
             "three_public_cases_ready": len(tuple(value for value in fields["case_links"].splitlines() if value)) == 3,
             "cover_ready": fields["cover_asset_role"] == "cover",
+            "case_assets_verified": dossier.facts.get("coze_case_assets_verified") is True,
         }
         return disclosure
+
+    def build_plan(self, staging: ChannelStaging, artifact: Artifact, account_alias: str) -> SubmissionPlan:
+        checks = staging.disclosure.get("coze_contract_checks", {})
+        required = (
+            "listing_qualification_verified",
+            "three_public_cases_ready",
+            "cover_ready",
+            "case_assets_verified",
+        )
+        if not isinstance(checks, dict) or any(checks.get(key) is not True for key in required):
+            raise ChannelContractError(
+                "channel_contract_unverified",
+                "Coze listing submission requires verified qualification, a cover, and exactly three public cases with verified names and images.",
+                self.manual_fallback,
+            )
+        links = tuple(value.strip() for value in staging.fields["case_links"].splitlines() if value.strip())
+        if len(links) != 3 or any(not value.startswith("https://") for value in links):
+            raise ChannelContractError(
+                "channel_contract_unverified",
+                "Coze public case links must contain exactly three HTTPS URLs.",
+                self.manual_fallback,
+            )
+        return super().build_plan(staging, artifact, account_alias)
 
     def _required_fact(self, facts, key: str) -> str:
         value = str(facts.get(key, "")).strip()

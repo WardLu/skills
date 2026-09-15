@@ -4,6 +4,7 @@ import sys
 import tempfile
 import types
 import unittest
+import sqlite3
 from pathlib import Path
 from unittest.mock import patch
 
@@ -57,6 +58,10 @@ class OrchestrationTests(unittest.TestCase):
             continuation = json.loads(resumed.stdout)["attempts"][0]["continuation"]
             self.assertEqual(continuation["next_action"], "confirm_upload")
             self.assertEqual(continuation["channel"], "workbuddy")
+            self.assertEqual(
+                continuation["artifact_relative_path"],
+                "runs/{0}/artifacts/{1}".format(scope["run_id"], Path(continuation["artifact_path"]).name),
+            )
 
             authorized = run_cli([
                 "authorize-batch", payload["batch_id"], "--home", str(home), "--kind", "upload", "--json",
@@ -73,6 +78,47 @@ class OrchestrationTests(unittest.TestCase):
             repeated = run_cli(["monitor", str(observations), "--home", str(home), "--json"])
             self.assertEqual(repeated.exit_code, 0, repeated.stderr or repeated.stdout)
             self.assertFalse(json.loads(repeated.stdout)["notification_required"])
+
+            wrong_version = root / "wrong-version.json"
+            wrong_version.write_text(json.dumps([{
+                "run_id": scope["run_id"], "channel": "workbuddy",
+                "event": "upload_completed", "raw_status": "上传完成", "source_version": "9.9.9",
+            }]), encoding="utf-8")
+            rejected = run_cli(["monitor", str(wrong_version), "--home", str(home), "--json"])
+            self.assertNotEqual(rejected.exit_code, 0)
+            self.assertIn("source_version must match", rejected.stdout)
+
+    def test_batch_authorization_is_atomic_when_later_digest_changed(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            home = root / "publisher-home"
+            entries = []
+            for name in ("first", "second"):
+                skill = make_skill(root / name)
+                profile_path = root / (name + "-profile.json")
+                profile_path.write_text(json.dumps(source_profile(skill)), encoding="utf-8")
+                entries.append({"source": str(skill), "channels": ["workbuddy"], "profile": str(profile_path)})
+            manifest = root / "batch.json"
+            manifest.write_text(json.dumps({"entries": entries}), encoding="utf-8")
+            (root / "yaml.py").write_text(
+                "class YAMLError(ValueError): pass\n"
+                "def safe_load(text):\n"
+                " return {line.partition(':')[0].strip(): line.partition(':')[2].strip() for line in text.splitlines() if line.strip() and not line.strip().startswith('#') and ':' in line}\n",
+                encoding="utf-8",
+            )
+            with patch.dict(os.environ, {"PYTHONPATH": str(root)}):
+                prepared = run_cli(["batch", str(manifest), "--home", str(home), "--json"])
+            payload = json.loads(prepared.stdout)
+            scope = payload["confirmation_scope"]["attempts"]
+            self.assertEqual(len(scope), 2)
+            scope[1]["upload_confirmation_digest"] = "changed"
+            receipt = root / "changed-receipt.json"
+            receipt.write_text(json.dumps({"batch_id": "changed", "confirmation_scope": {"attempts": scope}}), encoding="utf-8")
+            rejected = run_cli(["authorize-batch", str(receipt), "--home", str(home), "--kind", "upload", "--json"])
+            self.assertNotEqual(rejected.exit_code, 0)
+            with sqlite3.connect(home / "state" / "publisher.sqlite3") as connection:
+                count = connection.execute("SELECT COUNT(*) FROM authorizations").fetchone()[0]
+            self.assertEqual(count, 0)
 
     def test_batch_id_changes_when_confirmation_digest_changes(self):
         from shadow_skill_publisher.cli import _batch_id

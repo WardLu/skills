@@ -142,6 +142,10 @@ def _upload_payload(plan: SubmissionPlan) -> dict[str, Any]:
         },
         "permissions": _string_sequence(_mapping_value(plan.disclosure, "permissions", ())),
         "external_services": _string_sequence(_mapping_value(plan.disclosure, "external_services", ())),
+        "artifact_policy": _canonicalize(_mapping_value(plan.disclosure, "artifact_policy", {})),
+        "listing_asset_receipts": _canonicalize(
+            _mapping_value(plan.disclosure, "listing_asset_receipts", ())
+        ),
         "disclosure_summary": {
             "fields": _string_mapping(plan.fields, "fields"),
             "claims": _string_sequence(_mapping_value(plan.disclosure, "claims", ())),

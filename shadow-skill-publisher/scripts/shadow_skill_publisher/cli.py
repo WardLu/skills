@@ -54,7 +54,7 @@ from .redaction import redact_text
 from .source import SourceContractError, SourceSnapshot, load_source
 
 
-VERSION = "0.6.1"
+VERSION = "0.6.2"
 COMMANDS = ("check", "prepare", "batch", "authorize-batch", "resume", "monitor", "finalize", "authorize", "record", "status", "export")
 
 _BLOCK_EXIT = 1
@@ -640,6 +640,7 @@ def _handle_batch_authorize(args: argparse.Namespace) -> int:
         if not isinstance(scope, list) or not scope:
             raise ValueError("batch receipt has no confirmation scope")
         ledger = _open_ledger(home, create=False)
+        pending = []
         recorded = []
         for item in scope:
             if not isinstance(item, Mapping):
@@ -652,8 +653,9 @@ def _handle_batch_authorize(args: argparse.Namespace) -> int:
             receipt_digest = item.get(args.kind + "_confirmation_digest")
             if not current or receipt_digest != current:
                 raise AuthorizationRequired("batch authorization stopped because a digest is missing or changed")
-            ledger.add_authorization(run_id, args.kind, current, args.confirmed_at or "batch-confirmation")
+            pending.append((run_id, args.kind, current, args.confirmed_at or "batch-confirmation"))
             recorded.append({"run_id": run_id, "channel": channel, "kind": args.kind, "digest": current})
+        ledger.add_authorizations(pending)
         _refresh_markdown_ledger(home, ledger)
         payload = {"batch_id": receipt.get("batch_id", ""), "authorized": recorded}
         _emit(args.json, payload, "authorized {0} {1} digests".format(len(recorded), args.kind))
@@ -689,14 +691,20 @@ def _handle_monitor(args: argparse.Namespace) -> int:
             mapped = adapter.map_status(raw_status)
             if mapped is not None and mapped != target:
                 raise ValueError("raw status maps to a different lifecycle state")
-            if attempt.state == target:
-                unchanged.append({"run_id": run_id, "channel": channel, "state": target.value})
-                continue
             evidence = dict(item)
-            evidence["source_version"] = attempt.source_version
+            supplied_version = str(evidence.get("source_version", "")).strip()
+            if supplied_version and supplied_version != attempt.source_version:
+                raise ValueError("monitor evidence source_version must match the attempt")
+            evidence.setdefault("source_version", attempt.source_version)
+            supplied_product = str(evidence.get("product_id", "")).strip()
+            if supplied_product and plan.platform_id and supplied_product != str(plan.platform_id):
+                raise ValueError("monitor evidence product_id must match the finalized plan")
             if attempt.product_id:
                 evidence.setdefault("product_id", attempt.product_id)
             _validate_record_evidence(attempt, plan, event, evidence)
+            if attempt.state == target:
+                unchanged.append({"run_id": run_id, "channel": channel, "state": target.value})
+                continue
             ledger.transition(run_id, target, event, evidence)
             changed.append(_serialize_attempt_status(ledger.get_attempt(run_id), ledger.load_submission_plan(run_id), ledger.load_frozen_fields_for_attempt(run_id), ledger))
         if changed:
@@ -746,6 +754,9 @@ def _continuation_packet(attempt, plan: SubmissionPlan) -> dict[str, object]:
         "channel": attempt.channel,
         "account_alias": attempt.account_alias,
         "artifact_path": str(plan.artifact.path),
+        "artifact_relative_path": "runs/{0}/artifacts/{1}".format(
+            attempt.attempt_id, Path(plan.artifact.path).name
+        ),
         "artifact_sha256": plan.artifact.sha256,
         "artifact_files": list(plan.artifact.files),
         "fields": dict(plan.fields),

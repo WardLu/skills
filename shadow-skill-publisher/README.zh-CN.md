@@ -1,6 +1,6 @@
 # Shadow Skill Publisher
 
-[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.6.1](https://img.shields.io/badge/version-0.6.1-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.6.2](https://img.shields.io/badge/version-0.6.2-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 `shadow-skill-publisher` 用于在发布 Agent Skill 前完成检查，并为选定渠道分别准备
 发布包、上架信息、可恢复交接和状态记录。它不会绕过登录、协议或最终提交确认。

@@ -112,7 +112,7 @@ def source_profile(skill: Path) -> dict:
 
 class CliMetadataTests(unittest.TestCase):
     def test_version_and_commands_are_available(self):
-        self.assertEqual(VERSION, "0.6.1")
+        self.assertEqual(VERSION, "0.6.2")
         self.assertEqual(
             COMMANDS,
             ("check", "prepare", "batch", "authorize-batch", "resume", "monitor", "finalize", "authorize", "record", "status", "export"),

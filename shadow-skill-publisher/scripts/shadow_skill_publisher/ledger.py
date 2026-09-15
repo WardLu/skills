@@ -623,6 +623,35 @@ class Ledger:
                 ),
             )
 
+    def add_authorizations(self, entries: Iterable[tuple[str, str, str, str]]) -> None:
+        """Validate a complete batch first, then persist every authorization atomically."""
+
+        normalized = tuple((str(a), str(k), str(d), str(c)) for a, k, d, c in entries)
+        if not normalized:
+            raise ValueError("authorization batch must not be empty")
+        timestamp = _utcnow()
+        with self._immediate_transaction():
+            for attempt_id, kind, digest, confirmed_at in normalized:
+                if kind not in {"upload", "submission"}:
+                    raise ValueError("kind must be upload or submission")
+                if not digest or not confirmed_at:
+                    raise ValueError("digest and confirmed_at must be non-empty")
+                self.get_attempt(attempt_id)
+                self.require_no_active_blockers(attempt_id)
+                plan = self.load_submission_plan(attempt_id)
+                expected = plan.upload_confirmation_digest if kind == "upload" else plan.submission_confirmation_digest
+                if not expected or digest != expected:
+                    raise AuthorizationRequired(f"{kind} authorization must match the current persisted plan digest")
+            for attempt_id, kind, digest, confirmed_at in normalized:
+                self._connection.execute(
+                    "INSERT INTO authorizations (attempt_id, kind, digest, confirmed_at, created_at) VALUES (?, ?, ?, ?, ?)",
+                    (attempt_id, kind, digest, confirmed_at, timestamp),
+                )
+                self._connection.execute(
+                    "INSERT INTO events (attempt_id, from_state, to_state, event, evidence_json, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+                    (attempt_id, None, None, "authorization_added", _dump_json({"kind": kind, "digest": digest, "confirmed_at": confirmed_at}), timestamp),
+                )
+
     def require_authorization(self, attempt_id: str, kind: str, digest: str) -> None:
         """Require an exact current authorization without mutating ledger state."""
 

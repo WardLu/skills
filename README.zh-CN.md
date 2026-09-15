@@ -26,7 +26,7 @@
 | `github-repo-i18n` | 让选定的仓库文档在不同语言之间保持一致。 | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
 | `public-release-gate` | 审核发布元数据、产物、许可证、部署状态和附件。 | `0.1.4` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |
 | `public-repo-git-gate` | 在 commit、push 或 Pull Request 前检查公开内容和 Git 边界。 | `0.1.2` | [English](public-repo-git-gate/README.md) · [简体中文](public-repo-git-gate/README.zh-CN.md) |
-| `shadow-skill-publisher` | 在手动发布前校验、打包和跟踪本地 Agent Skill。 | `0.6.1` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
+| `shadow-skill-publisher` | 在手动发布前校验、打包和跟踪本地 Agent Skill。 | `0.6.2` | [English](shadow-skill-publisher/README.md) · [简体中文](shadow-skill-publisher/README.zh-CN.md) |
 | `test-scope-routing` | 为一次改动选择最小但足够的验证范围。 | `0.1.2` | [English](test-scope-routing/README.md) · [简体中文](test-scope-routing/README.zh-CN.md) |
 
 ## 安装

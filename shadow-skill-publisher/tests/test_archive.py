@@ -78,6 +78,7 @@ class ArchiveTests(unittest.TestCase):
             snapshot = self._snapshot(base / "source")
             staging = {
                 "demo-skill/SKILL.md": b"---\nname: demo-skill\n---\n",
+                "demo-skill/_skillhub_meta.json": b"{}\n",
                 "demo-skill/references/guide.md": b"Nested guide\n",
             }
             artifact = build_artifact(snapshot, "workbuddy", staging, base / "out")
@@ -88,12 +89,45 @@ class ArchiveTests(unittest.TestCase):
                 (
                     "demo-skill/LICENSE",
                     "demo-skill/SKILL.md",
+                    "demo-skill/_skillhub_meta.json",
                     "demo-skill/references/guide.md",
                 ),
             )
             self.assertIn("demo-skill/SKILL.md", names)
             self.assertIn("demo-skill/references/guide.md", names)
             self.assertEqual(verify_artifact(artifact, artifact.files), ())
+
+    def test_workbuddy_exclusions_apply_to_nested_staging_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            snapshot = self._snapshot(base / "source")
+            staging = {
+                "demo-skill/SKILL.md": b"---\nname: demo-skill\n---\n",
+                "demo-skill/_skillhub_meta.json": b"{}\n",
+                "demo-skill/scripts/run.py": b"print('excluded')\n",
+            }
+            artifact = build_artifact(snapshot, "workbuddy", staging, base / "out", ("scripts/**",))
+            self.assertNotIn("demo-skill/scripts/run.py", artifact.files)
+            self.assertEqual(verify_artifact(artifact, artifact.files), ())
+
+    def test_workbuddy_verifier_rejects_root_level_runtime_files(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            path = base / "root.zip"
+            with zipfile.ZipFile(path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+                archive.writestr("SKILL.md", b"---\nname: demo-skill\n---\n")
+                archive.writestr("LICENSE", b"MIT\n")
+                archive.writestr("_skillhub_meta.json", b"{}\n")
+            digest = hashlib.sha256(path.read_bytes()).hexdigest()
+            files = ("LICENSE", "SKILL.md", "_skillhub_meta.json")
+            path.with_name(path.name + ".manifest.json").write_text(
+                json.dumps({"sha256": digest, "size_bytes": path.stat().st_size, "files": list(files)}),
+                encoding="utf-8",
+            )
+            artifact = Artifact("workbuddy", path, digest, path.stat().st_size, files)
+            codes = {finding.code for finding in verify_artifact(artifact, files)}
+            self.assertIn("workbuddy_single_root_required", codes)
+            self.assertIn("archive_unexpected_file", codes)
 
     def test_workbuddy_archive_resolves_to_installable_single_root(self):
         with tempfile.TemporaryDirectory() as directory:

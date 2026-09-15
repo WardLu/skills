@@ -214,6 +214,15 @@ class AdapterTests(unittest.TestCase):
         self.assertEqual(staging.fields["pricing_strategy"], "prefer_exact_then_lowest_available_tier")
         self.assertFalse(staging.disclosure["coze_contract_checks"]["three_public_cases_ready"])
         self.assertFalse(staging.disclosure["coze_contract_checks"]["listing_qualification_verified"])
+        coze_artifact = Artifact(
+            channel="coze-skill-store",
+            path=self.artifact.path,
+            sha256=self.artifact.sha256,
+            size_bytes=self.artifact.size_bytes,
+            files=self.artifact.files,
+        )
+        with self.assertRaises(ChannelContractError):
+            CozeSkillStoreAdapter().build_plan(staging, coze_artifact, "coze-primary")
 
     def test_workbuddy_injects_required_listing_metadata_without_changing_body(self):
         for relative, payload in {

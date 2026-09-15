@@ -53,6 +53,10 @@ def build_artifact(
             raise TypeError(f"staging file {name!r} must contain bytes")
         if channel == "workbuddy" and not name.startswith(f"{snapshot.name}/"):
             raise ValueError("workbuddy_package_path_invalid")
+        if channel == "workbuddy":
+            relative_name = name[len(f"{snapshot.name}/"):]
+            if _matches_any(relative_name, excluded_patterns):
+                continue
         if not _is_allowed(name, channel=channel, snapshot_name=snapshot.name):
             if channel == "workbuddy" and name.startswith(f"{snapshot.name}/"):
                 raise ValueError("workbuddy_package_path_invalid")
@@ -67,6 +71,8 @@ def build_artifact(
     required_skill_path = f"{snapshot.name}/SKILL.md" if channel == "workbuddy" else "SKILL.md"
     if required_skill_path not in files:
         raise ValueError("missing_skill_md")
+    if channel == "workbuddy" and f"{snapshot.name}/_skillhub_meta.json" not in files:
+        raise ValueError("missing_skillhub_metadata")
 
     ordered = tuple(sorted(files))
     destination = Path(output_dir).expanduser().resolve()
@@ -162,6 +168,15 @@ def verify_artifact(artifact: Artifact, expected_files: Sequence[str]) -> tuple[
         return tuple(findings)
 
     actual_files = tuple(sorted(names))
+    if artifact.channel == "workbuddy":
+        top_level = {PurePosixPath(name).parts[0] for name in actual_files if PurePosixPath(name).parts}
+        if len(top_level) != 1 or workbuddy_prefix is None:
+            findings.append(_finding("workbuddy_single_root_required", "WorkBuddy archive must contain exactly one top-level directory."))
+        else:
+            root = next(iter(top_level))
+            required = {f"{root}/SKILL.md", f"{root}/LICENSE", f"{root}/_skillhub_meta.json"}
+            for required_name in sorted(required.difference(actual_files)):
+                findings.append(_finding("workbuddy_required_file_missing", "WorkBuddy archive is missing a required file.", required_name))
     if actual_files != tuple(sorted(expected)):
         findings.append(_finding("archive_file_manifest_mismatch", "Archive file list differs from expected files."))
     manifest_path = path.with_name(path.name + ".manifest.json")
@@ -206,11 +221,11 @@ def _is_allowed(
         or any(_is_excluded_document(part) for part in parts)
     ):
         return False
-    if name in _ALLOWED_ROOTS or (len(parts) >= 2 and parts[0] in _ALLOWED_DIRS):
-        return True
     prefix = package_prefix
     if channel == "workbuddy" and snapshot_name:
         prefix = f"{snapshot_name}/"
+    if channel != "workbuddy":
+        return name in _ALLOWED_ROOTS or (len(parts) >= 2 and parts[0] in _ALLOWED_DIRS)
     if not prefix or not name.startswith(prefix) or len(name) <= len(prefix):
         return False
     nested = name[len(prefix):]

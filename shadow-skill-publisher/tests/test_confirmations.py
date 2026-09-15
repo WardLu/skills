@@ -62,6 +62,26 @@ class ConfirmationDigestTests(unittest.TestCase):
         self.assertNotEqual(upload_digest(self.plan), upload_digest(replace(self.plan, account_alias="other")))
         self.assertNotEqual(upload_digest(self.plan), upload_digest(replace(self.plan, artifact=self.other_artifact)))
 
+    def test_upload_digest_binds_artifact_policy_and_listing_assets(self):
+        with_policy = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "artifact_policy": {"excluded_patterns": ["scripts/**"]},
+            },
+        )
+        with_asset = replace(
+            self.plan,
+            disclosure={
+                **self.plan.disclosure,
+                "listing_asset_receipts": [
+                    {"role": "cover", "sha256": "a" * 64, "size_bytes": 12, "suffix": ".png"}
+                ],
+            },
+        )
+        self.assertNotEqual(upload_digest(self.plan), upload_digest(with_policy))
+        self.assertNotEqual(upload_digest(self.plan), upload_digest(with_asset))
+
     def test_submission_digest_changes_with_price_or_action(self):
         first = finalize_submission_plan(self.plan, "draft-1", {**self.plan.fields, "price": "19"}, "submit_review")
         changed_price = finalize_submission_plan(self.plan, "draft-1", {**self.plan.fields, "price": "29"}, "submit_review")
