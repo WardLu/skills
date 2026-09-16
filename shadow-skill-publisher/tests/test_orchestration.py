@@ -5,6 +5,7 @@ import tempfile
 import types
 import unittest
 import sqlite3
+from contextlib import closing
 from pathlib import Path
 from unittest.mock import patch
 
@@ -116,7 +117,7 @@ class OrchestrationTests(unittest.TestCase):
             receipt.write_text(json.dumps({"batch_id": "changed", "confirmation_scope": {"attempts": scope}}), encoding="utf-8")
             rejected = run_cli(["authorize-batch", str(receipt), "--home", str(home), "--kind", "upload", "--json"])
             self.assertNotEqual(rejected.exit_code, 0)
-            with sqlite3.connect(home / "state" / "publisher.sqlite3") as connection:
+            with closing(sqlite3.connect(home / "state" / "publisher.sqlite3")) as connection:
                 count = connection.execute("SELECT COUNT(*) FROM authorizations").fetchone()[0]
             self.assertEqual(count, 0)
 

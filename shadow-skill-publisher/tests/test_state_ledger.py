@@ -4,7 +4,9 @@ import sqlite3
 import sys
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -67,6 +69,7 @@ class LedgerTests(unittest.TestCase):
         self.base = Path(self.temp_dir.name)
         self.db_path = self.base / "publisher.sqlite3"
         self.ledger = Ledger.open(self.db_path)
+        self.addCleanup(self.ledger.close)
         self.snapshot = self._snapshot(self.base / "source")
         self.artifact = self._artifact(self.base / "dist" / "demo.zip", "artifact-one")
         self.plan = self._plan(self.artifact, upload_suffix="upload-v1", submission_suffix=None)
@@ -78,6 +81,37 @@ class LedgerTests(unittest.TestCase):
             observed_fields={"title": "Observed demo"},
             final_action="submit_review",
         )
+
+    def test_ledger_context_manager_closes_connection(self):
+        path = self.base / "context-manager.sqlite3"
+        with Ledger.open(path) as ledger:
+            connection = ledger._connection
+
+        with self.assertRaises(sqlite3.ProgrammingError):
+            connection.execute("SELECT 1")
+
+    def test_open_closes_connection_when_schema_initialization_fails(self):
+        path = self.base / "unsupported-schema.sqlite3"
+        with closing(sqlite3.connect(path)) as connection:
+            connection.execute("CREATE TABLE schema_version(version INTEGER NOT NULL)")
+            connection.execute("INSERT INTO schema_version(version) VALUES (999)")
+            connection.commit()
+
+        opened = []
+        real_connect = sqlite3.connect
+
+        def capture_connection(*args, **kwargs):
+            connection = real_connect(*args, **kwargs)
+            opened.append(connection)
+            return connection
+
+        with patch("shadow_skill_publisher.ledger.sqlite3.connect", side_effect=capture_connection):
+            with self.assertRaisesRegex(RuntimeError, "unsupported schema version"):
+                Ledger.open(path)
+
+        self.assertEqual(len(opened), 1)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            opened[0].execute("SELECT 1")
 
     def _snapshot(self, root: Path) -> SourceSnapshot:
         root.mkdir(parents=True)
@@ -310,7 +344,7 @@ class LedgerTests(unittest.TestCase):
 
         self.ledger.save_frozen_fields(attempt, frozen)
 
-        with sqlite3.connect(self.db_path) as connection:
+        with closing(sqlite3.connect(self.db_path)) as connection:
             row = connection.execute(
                 "SELECT values_json, generated_facts_json FROM frozen_fields WHERE attempt_id = ?",
                 (attempt,),
@@ -359,7 +393,7 @@ class LedgerTests(unittest.TestCase):
 
         self.ledger.save_submission_plan(attempt, sensitive_plan)
 
-        with sqlite3.connect(self.db_path) as connection:
+        with closing(sqlite3.connect(self.db_path)) as connection:
             row = connection.execute(
                 "SELECT plan_json FROM submission_plans WHERE attempt_id = ? ORDER BY revision DESC LIMIT 1",
                 (attempt,),
@@ -471,7 +505,7 @@ class LedgerTests(unittest.TestCase):
         self.assertNotIn(private_home, exported_csv)
 
     def test_schema_version_table_is_initialized(self):
-        with sqlite3.connect(self.db_path) as connection:
+        with closing(sqlite3.connect(self.db_path)) as connection:
             row = connection.execute("SELECT version FROM schema_version").fetchone()
         self.assertEqual(row[0], 1)
 

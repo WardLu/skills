@@ -74,7 +74,7 @@ class WaitForDesktopExitTests(unittest.TestCase):
                 "44 /Applications/ChatGPT.app/Contents/Frameworks/ChatGPT Helper.app/Contents/MacOS/ChatGPT Helper",
                 "45 /Applications/ChatGPT.app/Contents/Resources/codex",
                 "46 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/151.0/Helpers/Codex (Service).app/Contents/MacOS/Codex (Service)",
-                "47 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/151.0/Helpers/browser_crashpad_handler --database=/Users/test/Library/Application Support/Codex/Crashpad",
+                "47 /Applications/ChatGPT.app/Contents/Frameworks/Codex Framework.framework/Versions/151.0/Helpers/browser_crashpad_handler --database=/tmp/codex-crashpad",
             ]
         )
 
