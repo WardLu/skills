@@ -21,7 +21,7 @@ repository content.
 Install the Skill for a supported agent:
 
 ```bash
-npx skills add WardLu/skills --skill github-repo-i18n
+npx skills add https://github.com/wardlu/skills --skill github-repo-i18n
 ```
 
 Tell the agent exactly which files or metadata surfaces and which locales to

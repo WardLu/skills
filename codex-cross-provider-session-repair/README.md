@@ -22,7 +22,7 @@ Use it when an existing conversation cannot continue because:
 Install it for Codex with the `skills` CLI:
 
 ```bash
-npx skills add WardLu/skills --skill codex-cross-provider-session-repair
+npx skills add https://github.com/wardlu/skills --skill codex-cross-provider-session-repair
 ```
 
 The command requires Node.js/npm. After installation, ask Codex to diagnose

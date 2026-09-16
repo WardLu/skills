@@ -32,7 +32,7 @@
 使用 `skills` CLI 将 Skill 安装到受支持的 agent：
 
 ```bash
-npx skills add WardLu/skills --skill shadow-skill-publisher
+npx skills add https://github.com/wardlu/skills --skill shadow-skill-publisher
 ```
 
 将 `<agent-name>` 替换为你使用的 agent。安装后，直接让该 agent 检查并准备要发布

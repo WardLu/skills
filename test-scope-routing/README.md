@@ -32,7 +32,7 @@ Use it when planning or reviewing a change and you need to decide:
 Install the Skill for a supported agent:
 
 ```bash
-npx skills add WardLu/skills --skill test-scope-routing
+npx skills add https://github.com/wardlu/skills --skill test-scope-routing
 ```
 
 For example:

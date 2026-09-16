@@ -21,7 +21,7 @@ not just `.gitignore` or a file summary.
 Install the Skill for a supported agent:
 
 ```bash
-npx skills add WardLu/skills --skill public-repo-git-gate
+npx skills add https://github.com/wardlu/skills --skill public-repo-git-gate
 ```
 
 For example:

@@ -48,7 +48,7 @@ agent 能接触什么、数据可能发到哪里、不可信内容能否影响�
 
 ~~~bash
 cd /path/to/project
-npx skills add WardLu/skills --skill agent-privacy-check
+npx skills add https://github.com/wardlu/skills --skill agent-privacy-check
 ~~~
 
 只有在明确希望所有项目都启用这个 Skill 时才使用 --global，因为它会扩大 Skill
