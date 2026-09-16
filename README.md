@@ -50,6 +50,14 @@ npx skills update <skill-name>
 npx skills remove <skill-name>
 ```
 
+## Distribution
+
+This public GitHub collection is also discoverable through the open
+[skills.sh directory and leaderboard](https://skills.sh/). Hermes Agent can
+search the skills.sh source or add this repository as a GitHub tap, then
+inspect and install individual Skills through its Skills Hub. Review the source
+and required permissions before installing any third-party Skill.
+
 ## Safety
 
 Each Skill documents its own scope and compatibility. Read its README before
