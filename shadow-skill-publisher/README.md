@@ -42,7 +42,7 @@ Install the Skill for a supported agent with the `skills` CLI:
 npx skills add https://github.com/wardlu/skills --skill shadow-skill-publisher
 ```
 
-Replace `<agent-name>` with the agent you use. After installation, ask that
+The CLI installs at project scope by default. After installation, ask your
 agent to check and prepare the Skill you want to publish.
 
 ## Example

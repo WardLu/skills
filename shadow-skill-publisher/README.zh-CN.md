@@ -35,8 +35,7 @@
 npx skills add https://github.com/wardlu/skills --skill shadow-skill-publisher
 ```
 
-将 `<agent-name>` 替换为你使用的 agent。安装后，直接让该 agent 检查并准备要发布
-的 Skill 即可。
+CLI 默认安装到项目范围。安装后，直接让当前 agent 检查并准备要发布的 Skill 即可。
 
 ## 示例
 
