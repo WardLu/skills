@@ -19,7 +19,7 @@
 将 Skill 安装到受支持的 agent：
 
 ```bash
-npx skills add WardLu/skills --skill public-release-gate --global --agent <agent-name> --yes
+npx skills add WardLu/skills --skill public-release-gate
 ```
 
 然后让 agent 审核指定版本、Tag、产物集合和生产 URL。例如：

@@ -19,7 +19,7 @@
 将 Skill 安装到受支持的 agent：
 
 ```bash
-npx skills add WardLu/skills --skill codex-doctor --global --agent <agent-name> --yes
+npx skills add WardLu/skills --skill codex-doctor
 ```
 
 工作区中必须已有 Codex Doctor 分析器，或由你提供其路径。安装后，让 agent 分析指定

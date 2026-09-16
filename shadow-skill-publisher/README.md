@@ -39,7 +39,7 @@ confirmation.
 Install the Skill for a supported agent with the `skills` CLI:
 
 ```bash
-npx skills add WardLu/skills --skill shadow-skill-publisher --global --agent <agent-name> --yes
+npx skills add WardLu/skills --skill shadow-skill-publisher
 ```
 
 Replace `<agent-name>` with the agent you use. After installation, ask that
