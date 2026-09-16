@@ -665,6 +665,7 @@ class LocalWorkflowTests(unittest.TestCase):
         run_id = self.prepare_attempt()
         self.finalize_attempt(run_id, "draft-1")
         ledger = Ledger.open(self.home / "state" / "publisher.sqlite3")
+        self.addCleanup(ledger.close)
 
         plan = ledger.load_submission_plan(run_id)
 
@@ -1211,6 +1212,7 @@ class LocalWorkflowTests(unittest.TestCase):
     def test_orphaned_owner_wait_includes_executable_claim_cancel_command(self):
         snapshot = load_source(self.skill)
         ledger = Ledger.open(self.home / "state" / "publisher.sqlite3")
+        self.addCleanup(ledger.close)
         owner, acquired = ledger.claim_ownership(snapshot, "workbuddy")
         self.assertTrue(acquired)
         self.assertIsNone(owner.owner_attempt_id)

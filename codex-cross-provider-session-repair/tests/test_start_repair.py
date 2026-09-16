@@ -62,7 +62,7 @@ class StartRepairTests(unittest.TestCase):
                 "--session-id",
                 "session-1",
                 "--codex-home",
-                "/Users/wardlu/.codex",
+                "/tmp/codex-home",
             ],
             workdir=Path("/tmp/repair-skill"),
             runner_path=Path("/tmp/codex-session-repair-session-1.sh"),

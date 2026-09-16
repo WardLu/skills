@@ -167,22 +167,36 @@ class Ledger:
         database_path = Path(path).expanduser().resolve()
         database_path.parent.mkdir(parents=True, exist_ok=True)
         connection = sqlite3.connect(str(database_path))
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        ledger = cls(database_path, connection)
-        ledger._initialize()
-        return ledger
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
+            ledger = cls(database_path, connection)
+            ledger._initialize()
+            return ledger
+        except BaseException:
+            connection.close()
+            raise
 
     @classmethod
     def open_readonly(cls, path: Path) -> "Ledger":
         database_path = Path(path).expanduser().resolve()
         connection = sqlite3.connect(database_path.as_uri() + "?mode=ro", uri=True)
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA foreign_keys = ON")
-        return cls(database_path, connection)
+        try:
+            connection.row_factory = sqlite3.Row
+            connection.execute("PRAGMA foreign_keys = ON")
+            return cls(database_path, connection)
+        except BaseException:
+            connection.close()
+            raise
 
     def close(self) -> None:
         self._connection.close()
+
+    def __enter__(self) -> "Ledger":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.close()
 
     def create_attempt(
         self,
