@@ -184,6 +184,12 @@ class Ledger:
     def close(self) -> None:
         self._connection.close()
 
+    def __enter__(self) -> "Ledger":
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        self.close()
+
     def create_attempt(
         self,
         snapshot: SourceSnapshot,
