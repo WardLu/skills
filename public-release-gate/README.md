@@ -20,7 +20,7 @@ state instead of treating a passing commit or CI job as release approval.
 Install the Skill for a supported agent:
 
 ```bash
-npx skills add WardLu/skills --skill public-release-gate --global --agent <agent-name> --yes
+npx skills add https://github.com/wardlu/skills --skill public-release-gate
 ```
 
 Then ask the agent to review a specific version, tag, artifact set, and

@@ -21,7 +21,7 @@
 使用 `skills` CLI 将它安装到 Codex：
 
 ```bash
-npx skills add WardLu/skills --skill codex-cross-provider-session-repair --global --agent codex --yes
+npx skills add https://github.com/wardlu/skills --skill codex-cross-provider-session-repair
 ```
 
 该命令需要 Node.js/npm。安装后，把受影响的会话 UUID 和界面中的错误交给 Codex，

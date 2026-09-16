@@ -1,0 +1,39 @@
+{
+  "$schema": "https://skills.sh/schemas/skills.sh.schema.json",
+  "notGrouped": "bottom",
+  "groupings": [
+    {
+      "title": "Safety and release",
+      "skills": [
+        "agent-privacy-check",
+        "public-release-gate",
+        "public-repo-git-gate"
+      ]
+    },
+    {
+      "title": "Publishing and distribution",
+      "skills": [
+        "shadow-skill-publisher"
+      ]
+    },
+    {
+      "title": "Codex workflows",
+      "skills": [
+        "codex-cross-provider-session-repair",
+        "codex-doctor"
+      ]
+    },
+    {
+      "title": "Repository documentation",
+      "skills": [
+        "github-repo-i18n"
+      ]
+    },
+    {
+      "title": "Validation",
+      "skills": [
+        "test-scope-routing"
+      ]
+    }
+  ]
+}

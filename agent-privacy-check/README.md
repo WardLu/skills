@@ -55,7 +55,7 @@ Install it in the current project (recommended):
 
 ~~~bash
 cd /path/to/project
-npx skills add WardLu/skills --skill agent-privacy-check --agent <agent-name> --copy
+npx skills add https://github.com/wardlu/skills --skill agent-privacy-check
 ~~~
 
 Use --global only when you intentionally want this Skill across projects; that

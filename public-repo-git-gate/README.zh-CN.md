@@ -20,7 +20,7 @@
 将 Skill 安装到受支持的 agent：
 
 ```bash
-npx skills add WardLu/skills --skill public-repo-git-gate --global --agent <agent-name> --yes
+npx skills add https://github.com/wardlu/skills --skill public-repo-git-gate
 ```
 
 例如：

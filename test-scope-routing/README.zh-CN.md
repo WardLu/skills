@@ -30,7 +30,7 @@
 将 Skill 安装到受支持的 agent：
 
 ```bash
-npx skills add WardLu/skills --skill test-scope-routing --global --agent <agent-name> --yes
+npx skills add https://github.com/wardlu/skills --skill test-scope-routing
 ```
 
 例如：

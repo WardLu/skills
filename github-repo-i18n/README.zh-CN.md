@@ -19,7 +19,7 @@
 将 Skill 安装到受支持的 agent：
 
 ```bash
-npx skills add WardLu/skills --skill github-repo-i18n --global --agent <agent-name> --yes
+npx skills add https://github.com/wardlu/skills --skill github-repo-i18n
 ```
 
 告诉 agent 准确的文件或元数据范围，以及要处理的语言。例如：

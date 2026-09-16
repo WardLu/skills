@@ -20,7 +20,7 @@ telemetry-only analysis by default and does not invoke a model.
 Install the Skill for a supported agent:
 
 ```bash
-npx skills add WardLu/skills --skill codex-doctor --global --agent <agent-name> --yes
+npx skills add https://github.com/wardlu/skills --skill codex-doctor
 ```
 
 An existing Codex Doctor analyzer must be available in the workspace or at a

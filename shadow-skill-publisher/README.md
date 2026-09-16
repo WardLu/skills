@@ -39,10 +39,10 @@ confirmation.
 Install the Skill for a supported agent with the `skills` CLI:
 
 ```bash
-npx skills add WardLu/skills --skill shadow-skill-publisher --global --agent <agent-name> --yes
+npx skills add https://github.com/wardlu/skills --skill shadow-skill-publisher
 ```
 
-Replace `<agent-name>` with the agent you use. After installation, ask that
+The CLI installs at project scope by default. After installation, ask your
 agent to check and prepare the Skill you want to publish.
 
 ## Example
