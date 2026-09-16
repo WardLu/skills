@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 
@@ -88,6 +89,29 @@ class LedgerTests(unittest.TestCase):
 
         with self.assertRaises(sqlite3.ProgrammingError):
             connection.execute("SELECT 1")
+
+    def test_open_closes_connection_when_schema_initialization_fails(self):
+        path = self.base / "unsupported-schema.sqlite3"
+        with closing(sqlite3.connect(path)) as connection:
+            connection.execute("CREATE TABLE schema_version(version INTEGER NOT NULL)")
+            connection.execute("INSERT INTO schema_version(version) VALUES (999)")
+            connection.commit()
+
+        opened = []
+        real_connect = sqlite3.connect
+
+        def capture_connection(*args, **kwargs):
+            connection = real_connect(*args, **kwargs)
+            opened.append(connection)
+            return connection
+
+        with patch("shadow_skill_publisher.ledger.sqlite3.connect", side_effect=capture_connection):
+            with self.assertRaisesRegex(RuntimeError, "unsupported schema version"):
+                Ledger.open(path)
+
+        self.assertEqual(len(opened), 1)
+        with self.assertRaises(sqlite3.ProgrammingError):
+            opened[0].execute("SELECT 1")
 
     def _snapshot(self, root: Path) -> SourceSnapshot:
         root.mkdir(parents=True)
