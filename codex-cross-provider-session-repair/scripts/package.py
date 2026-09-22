@@ -8,7 +8,9 @@ import zipfile
 from pathlib import Path
 
 
-EXCLUDED_DIRS = {"__pycache__", ".git", "evals"}
+# "dist" is the documented `--output` directory, so it must never be packaged:
+# building into it would otherwise nest the previous archive inside the new one.
+EXCLUDED_DIRS = {"__pycache__", ".git", "evals", "dist"}
 EXCLUDED_NAMES = {".DS_Store"}
 
 
@@ -21,12 +23,19 @@ def main() -> int:
     output = (args.output or root.parent).resolve()
     output.mkdir(parents=True, exist_ok=True)
     archive = output / f"{name}.skill"
+    # When the archive is written inside the skill directory (the documented
+    # `--output ./dist` usage), exclude everything under the output directory
+    # and the archive itself, otherwise each build nests the previous archive.
+    archive_resolved = archive.resolve()
     with zipfile.ZipFile(archive, "w", zipfile.ZIP_DEFLATED) as handle:
         for path in sorted(root.rglob("*")):
             if not path.is_file():
                 continue
             relative = path.relative_to(root)
             if any(part in EXCLUDED_DIRS for part in relative.parts) or path.name in EXCLUDED_NAMES:
+                continue
+            resolved = path.resolve()
+            if resolved == archive_resolved or output in resolved.parents:
                 continue
             handle.write(path, Path(name) / relative)
     print(archive)
