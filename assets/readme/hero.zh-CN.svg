@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">WardLu Skills 集合标识</title>
+  <desc id="desc">WardLu Skills 集合标识，以及构成一个 Skill 的文件：SKILL.md、VERSION、双语 README，references/ 与 tests/ 按需添加。</desc>
+
+  <rect width="1200" height="360" rx="28" fill="#0B0F14"/>
+
+  <g id="identity">
+    <text x="64" y="146" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="18" fill="#2563EB" letter-spacing="1.6">开源 SKILL 集合</text>
+    <text x="64" y="210" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="56" font-weight="700" fill="#E8EDF3">WardLu Skills</text>
+    <text x="64" y="262" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#6B7684" letter-spacing="1.2">MIT 许可证 · 独立版本号</text>
+  </g>
+
+  <g id="skill-anatomy">
+    <rect x="712" y="64" width="424" height="248" rx="18" fill="#151B23" stroke="#232B36" stroke-width="1.5"/>
+    <text x="748" y="108" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#2563EB" letter-spacing="1.2">一个 Skill</text>
+    <text x="748" y="152" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">SKILL.md</text>
+    <text x="748" y="188" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">VERSION</text>
+    <text x="748" y="224" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">README.md</text>
+    <text x="748" y="260" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">README.zh-CN.md</text>
+    <text x="748" y="294" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="16" fill="#6B7684">references/ · tests/ 按需添加</text>
+  </g>
+</svg>

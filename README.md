@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./assets/readme/hero.svg" width="100%" alt="WardLu Skills: focused, versioned open-source skills for agent workflows, and the four files that make up one Skill">
+
 # WardLu Skills
 
 Focused, versioned, open-source skills for agent workflows.
@@ -75,6 +77,10 @@ an unverified or blocked result as a request for review rather than success.
   before merging or releasing.
 - Use the relevant Skill README and the collection [CHANGELOG](CHANGELOG.md)
   for contribution and release context.
+
+<p align="center">
+  <img src="./assets/readme/workflow.svg" width="100%" alt="How a change ships: change a Skill, run its offline tests, pass the repository validation workflow, then publish a versioned update">
+</p>
 
 ## License
 

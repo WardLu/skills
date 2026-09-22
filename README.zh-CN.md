@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="./assets/readme/hero.zh-CN.svg" width="100%" alt="WardLu Skills：面向重复性 agent 工作的小而专注、可组合 Skill，以及构成一个 Skill 的四个文件">
+
 # WardLu Skills
 
 面向 agent 工作流的专注型、可版本管理、开源 Skill 集合。
@@ -68,6 +70,10 @@ npx skills remove <skill-name>
 - 合并或发布前运行
   [`.github/workflows/validate-skills.yml`](.github/workflows/validate-skills.yml) 中的仓库校验。
 - 贡献和发布背景请参考对应 Skill README 及集合的[变更记录](CHANGELOG.md)。
+
+<p align="center">
+  <img src="./assets/readme/workflow.zh-CN.svg" width="100%" alt="从改动到发布的四步：修改 Skill、运行离线测试、通过仓库校验工作流、发布版本化更新">
+</p>
 
 ## 许可证
 
