@@ -26,6 +26,10 @@ All notable changes to this skill are documented here.
 
 ### Fixed
 
+- Fix `scripts/package.py` so the documented `--output ./dist` usage no longer
+  nests the previous `.skill` archive inside the new one. Everything under the
+  output directory is now excluded from the payload, and `dist` joins the
+  excluded directory list.
 - Refuse `--disable-remote-compaction` with exit code 2 when the installed
   build reports `remote_compaction_v2` as `removed`, instead of writing a
   config key that Codex ignores. Such builds have no config switch and no local
