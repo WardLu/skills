@@ -7,6 +7,32 @@ agent workflows.
 
 ---
 
+## v0.4.2 - 2026-09-22
+
+> **Type**: Documentation layer, release-notes parity, and audit fix
+>
+> **GitHub Release**: [v0.4.2](https://github.com/WardLu/skills/releases/tag/v0.4.2)
+
+### Added
+
+- Root README visual layer: a hero and a four-step release workflow diagram in
+  English and Simplified Chinese, as pure SVG with accessible text contrast.
+
+### Changed
+
+- **`github-repo-i18n` → v0.1.2**: the parity audit now compares a linked document
+  from another locale family by its locale-neutral path, so a correct locale
+  pair is no longer a false mismatch.
+- Release notes are bilingual: `RELEASE_NOTES.md` is the English default and
+  `RELEASE_NOTES.zh-CN.md` preserves the Chinese content, both linked from the
+  root READMEs.
+
+### Fixed
+
+- Backfilled the missing v0.3.0 and v0.4.0 release-notes entries.
+
+---
+
 ## v0.4.1 - 2026-09-22
 
 > **Type**: Collection patch release (single-skill fix and upgrade)
