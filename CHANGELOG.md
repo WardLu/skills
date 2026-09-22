@@ -3,6 +3,35 @@
 All released collection-level changes are documented here. Individual skills
 may keep a more detailed changelog in their own directory.
 
+## [0.4.1] - 2026-09-22
+
+### Added
+
+- Added an offline repair path and a loopback compaction shim to
+  codex-cross-provider-session-repair, so one over-limit session can be repaired
+  without editing `config.toml`.
+
+### Changed
+
+- Upgraded codex-cross-provider-session-repair to v0.7.7. Sessions that aborted
+  with `remote compaction v2 expected exactly one compaction output item, got 0
+  from N output items` can now be repaired: the diagnostic reads the failure
+  from the rollout as well as `logs_2.sqlite`, reports the
+  `remote_compaction_v2` feature stage, and refuses `--disable-remote-compaction`
+  on builds where that flag is a removed tombstone.
+
+### Fixed
+
+- Fixed codex-cross-provider-session-repair's `scripts/package.py` so the
+  documented `--output ./dist` build no longer nests the previous `.skill`
+  archive inside the new one.
+
+### Release metadata
+
+- Released as tag and release name `v0.4.1`. The interim skill-scoped tag
+  `codex-cross-provider-session-repair-v0.7.7` was retired and now maps to this
+  collection release.
+
 ## [0.4.0] - 2026-09-16
 
 ### Added
