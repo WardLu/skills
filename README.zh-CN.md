@@ -8,7 +8,7 @@
 [![集合版本 0.4.1](https://img.shields.io/badge/collection%20version-0.4.1-2563eb.svg)](VERSION)
 [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
+[English](README.md) · [简体中文](README.zh-CN.md) · [变更记录](CHANGELOG.md) · [发布说明](RELEASE_NOTES.zh-CN.md) · [Issues](https://github.com/WardLu/skills/issues)
 
 </div>
 

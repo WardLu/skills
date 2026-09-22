@@ -8,7 +8,7 @@ Focused, versioned, open-source skills for agent workflows.
 [![Collection version 0.4.1](https://img.shields.io/badge/collection%20version-0.4.1-2563eb.svg)](VERSION)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Issues](https://github.com/WardLu/skills/issues)
+[English](README.md) · [简体中文](README.zh-CN.md) · [Changelog](CHANGELOG.md) · [Release notes](RELEASE_NOTES.md) · [Issues](https://github.com/WardLu/skills/issues)
 
 </div>
 
