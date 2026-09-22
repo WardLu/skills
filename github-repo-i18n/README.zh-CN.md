@@ -1,6 +1,6 @@
 # GitHub Repository i18n
 
-[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.1.1](https://img.shields.io/badge/version-0.1.1-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![技能校验](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![版本 0.1.2](https://img.shields.io/badge/version-0.1.2-2563eb.svg)](VERSION) [![MIT 许可证](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 `github-repo-i18n` 用于让 GitHub 仓库的用户可见语言层在英文默认入口和用户明确指定的
 语言之间保持一致。它可以翻译或审计选定文档，不会静默修改无关仓库内容。

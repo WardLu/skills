@@ -1,6 +1,6 @@
 # GitHub Repository i18n
 
-[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![Version 0.1.1](https://img.shields.io/badge/version-0.1.1-2563eb.svg)](VERSION) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
+[![Validate skills](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml/badge.svg)](https://github.com/WardLu/skills/actions/workflows/validate-skills.yml) [![Version 0.1.2](https://img.shields.io/badge/version-0.1.2-2563eb.svg)](VERSION) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](../LICENSE)
 
 `github-repo-i18n` keeps the user-facing language layer of a GitHub repository
 aligned across an English default and explicitly requested locales. It can
