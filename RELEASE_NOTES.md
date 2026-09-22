@@ -1,57 +1,136 @@
 # WardLu Skills Release Notes
 
-本文档汇总 WardLu Skills（面向 AI Agent 工作流的专注型开源 Skill 集合工程）历史版本发布说明。
+Release notes for WardLu Skills, a focused open-source skill collection for AI
+agent workflows.
+
+[English](RELEASE_NOTES.md) · [简体中文](RELEASE_NOTES.zh-CN.md)
 
 ---
 
 ## v0.4.1 - 2026-09-22
 
-> **类型**: 集合级补丁发布（单技能修复与升级）
+> **Type**: Collection patch release (single-skill fix and upgrade)
+>
 > **GitHub Release**: [v0.4.1](https://github.com/WardLu/skills/releases/tag/v0.4.1)
 
-### 技能升级
+### Skill upgrade
 
-- **codex-cross-provider-session-repair v0.7.7**：修复「远程压缩契约失败导致会话无法继续」的问题。
-  诊断改为同时读取 rollout 的 `task_complete` 记录（`logs_2.sqlite` 常只剩概括行），
-  读取 `remote_compaction_v2` 的特性阶段，并在该开关已是墓碑项时拒绝写入无效配置；
-  新增离线修复执行器与环回压缩 shim，可在不修改 `config.toml` 的前提下修复单个超限会话。
+- **codex-cross-provider-session-repair v0.7.7**: fixes sessions that could not
+  continue after a remote-compaction contract failure. The diagnostic now reads
+  the rollout's `task_complete` records as well as `logs_2.sqlite` (which usually
+  keeps only the generic line), reports the `remote_compaction_v2` feature stage,
+  and refuses to write an ineffective config key once that flag is a tombstone.
+  An offline repair runner and a loopback compaction shim repair one over-limit
+  session without editing `config.toml`.
 
-### 修复
+### Fixed
 
-- 修正 `scripts/package.py`：按文档使用 `--output ./dist` 构建时，归档不再把上一版
-  `.skill` 文件嵌套进新归档。
+- Corrected `scripts/package.py`: building with the documented
+  `--output ./dist` no longer nests the previous `.skill` file inside the new
+  archive.
 
-### 发布元数据
+### Release metadata
 
-- 单技能临时 Tag `codex-cross-provider-session-repair-v0.7.7` 已退役，映射到本集合发布。
+- The interim single-skill tag `codex-cross-provider-session-repair-v0.7.7` was
+  retired and now maps to this collection release.
+
+---
+
+## v0.4.0 - 2026-09-16
+
+> **Type**: New skill and skill upgrades
+>
+> **GitHub Release**: [v0.4.0](https://github.com/WardLu/skills/releases/tag/v0.4.0)
+
+### New skill
+
+- **`agent-privacy-check` (v0.1.0)**: read-only, plain-language audits of the
+  data an agent can reach, where data can leave, untrusted content, and the
+  resulting compound privacy risk across Codex, Claude Code, and generic agent
+  runtimes.
+
+### Skill upgrades
+
+- **`shadow-skill-publisher` → v0.6.3**: digest-bound batch workflows, resumable
+  handoffs, read-only monitoring, Coze Skill Store support, reusable listing
+  assets, and corrected single-root WorkBuddy archives.
+- **`public-release-gate` → v0.1.4**: corrected WorkBuddy packaging. v0.1.3 was
+  consumed by a withdrawn marketplace review and was never published.
+- **`codex-cross-provider-session-repair`**: synchronized its metadata with the
+  existing v0.7.6 VERSION and README files, and removed the unverified LovStudio
+  channel contract.
+
+### Verification
+
+- Independent review passed after all Critical and Important findings were resolved.
+- GitHub validation CI passed on the final PR heads.
+- 192 shadow-skill-publisher tests and 9 agent-privacy-check tests passed locally.
+- All 8 skills were discovered and installed in an isolated Codex target, and the
+  final source archive passed ZIP integrity and public-content checks.
+
+---
+
+## v0.3.0 - 2026-09-09
+
+> **Type**: Publishing workflow and documentation
+>
+> **GitHub Release**: [v0.3.0](https://github.com/WardLu/skills/releases/tag/v0.3.0)
+
+### Highlights
+
+- Added `shadow-skill-publisher` v0.2.0 for local Skill validation, channel
+  packaging, confirmation-bound handoff, and publication status tracking.
+- Added bilingual public README entry points for independently installable Skills.
+- Made the Publisher's first local check profile-free for prompt-only Skills;
+  missing channel facts are reported without creating remote or browser state.
+- Clarified browser-neutral manual handoff and maintainer-facing documentation
+  across the collection, and synchronized individual Skill versions, README
+  indexes, and public Git gates.
+
+### Included skill versions
+
+- `codex-cross-provider-session-repair` v0.7.6
+- `codex-doctor` v0.1.2
+- `github-repo-i18n` v0.1.1
+- `public-release-gate` v0.1.2
+- `public-repo-git-gate` v0.1.2
+- `shadow-skill-publisher` v0.2.0
+- `test-scope-routing` v0.1.2
+
+This is a source collection release; no custom binary attachments are included.
 
 ---
 
 ## v0.2.0 - 2026-09-02
 
-> **类型**: 大规模能力扩充与 CLI 分发生态建立  
+> **Type**: Large capability expansion and CLI distribution ecosystem
+>
 > **GitHub Release**: [v0.2.0](https://github.com/WardLu/skills/releases/tag/v0.2.0)
 
-### 核心新增 Skill
-1. **`codex-doctor` (v0.1.1)**：分析本地 Codex 会话 telemetry，生成隐私安全的工作流与提示词优化建议。
-2. **`github-repo-i18n` (v0.1.0)**：在英文默认入口和目标语言之间精准同步 GitHub 仓库文档、元数据与 Topics，提供 parity 校验与实时预览。
-3. **`public-release-gate` (v0.1.1)**：公开仓库 Release 产物、开源许可证合规、部署安全响应头与 GitHub Release 附件自动化审查门禁。
-4. **`public-repo-git-gate` (v0.1.1)**：公开仓库 Git commit、push 和 PR 分支状态、未跟踪文件与敏感信息防泄露门禁。
-5. **`test-scope-routing` (v0.1.1)**：框架无关的改动风险分级测试范围路由，杜绝盲目跑全量测试。
+### New skills
 
-### 工程与分发改进
-- **`npx skills` 原生分发支持**：支持通过标准 CLI 一键安装任意单项能力或全套集合：
-  - 单技能安装：`npx skills add WardLu/skills --skill <name> --global --agent codex --yes`
-  - 全集合安装：`npx skills add WardLu/skills --skill '*' --global --agent codex --yes`
-- **文档体系标准化**：重构双语文档入口，严格规范 `README.<locale>.md` 命名。
+1. **`codex-doctor` (v0.1.1)**: analyzes local Codex session telemetry and produces privacy-safe workflow and prompt improvement recommendations.
+2. **`github-repo-i18n` (v0.1.0)**: keeps GitHub repository documentation, metadata, and topics aligned between the English default entry and the target locales, with parity checks and live previews.
+3. **`public-release-gate` (v0.1.1)**: release review gate for public repositories, covering artifacts, open-source license compliance, deployment security response headers, and GitHub Release attachments.
+4. **`public-repo-git-gate` (v0.1.1)**: public-repository gate for Git commit, push, and pull request branch state, untracked files, and sensitive-information leakage.
+5. **`test-scope-routing` (v0.1.1)**: framework-agnostic change-risk grading and test-scope routing instead of blind full test runs.
+
+### Engineering and distribution
+
+- **Native `npx skills` distribution**: install any single skill or the whole collection through the standard CLI:
+  - Single skill: `npx skills add WardLu/skills --skill <name> --global --agent codex --yes`
+  - Whole collection: `npx skills add WardLu/skills --skill '*' --global --agent codex --yes`
+- **Documentation standardization**: rebuilt the bilingual documentation entry points and strictly standardized `README.<locale>.md` naming.
 
 ---
 
 ## v0.1.0 - 2026-08-05
 
-> **类型**: 初始版本发布  
+> **Type**: Initial release
+>
 > **GitHub Release**: [v0.1.0](https://github.com/WardLu/skills/releases/tag/v0.1.0)
 
-### 核心特性
-- **初始 Skill 发布**：发布 `codex-cross-provider-session-repair`（v0.4.0），首创在保留 Codex 目录的前提下，彻底修复供应商不一致以及远程上下文压缩 `404 Item with id 'rs_...' not found` 崩溃。
-- **自包含架构确立**：确立每个 Skill 独立目录、独立 `SKILL.md`、离线测试用例与轻量化依赖的规范。
+### Core features
+
+- **Initial skill release**: published `codex-cross-provider-session-repair` (v0.4.0), the first skill to fully repair provider inconsistency and remote context compaction `404 Item with id 'rs_...' not found` crashes while preserving the Codex directory.
+- **Self-contained architecture**: established per-skill directories, independent `SKILL.md` files, offline test cases, and lightweight dependencies.

@@ -9,6 +9,7 @@ SCRIPT_DIR = Path(__file__).resolve().parents[1] / "scripts"
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from audit_repo_i18n import (  # noqa: E402
+    _locale_neutral_path,
     audit_documents,
     audit_metadata,
     parse_document_specs,
@@ -73,6 +74,40 @@ class AuditRepoI18nTests(unittest.TestCase):
         codes = {issue.code for issue in report.issues}
         self.assertIn("missing-local-target", codes)
         self.assertIn("content-link-mismatch", codes)
+
+    def test_cross_family_locale_links_are_not_content_drift(self) -> None:
+        # README.zh-CN.md -> RELEASE_NOTES.zh-CN.md is the same document family
+        # as README.md -> RELEASE_NOTES.md, so it must not be reported.
+        repo = FIXTURES / "cross-family-link"
+        documents = parse_document_specs(
+            ["en=README.md", "zh-CN=README.zh-CN.md"],
+            repo,
+        )
+        report = audit_documents(repo, documents, "en", True)
+        self.assertEqual([issue.code for issue in report.issues], [])
+        self.assertTrue(report.ok)
+
+    def test_cross_family_locale_link_drift_is_still_reported(self) -> None:
+        # Linking a different family per locale must still fail.
+        repo = FIXTURES / "cross-family-drift"
+        documents = parse_document_specs(
+            ["en=README.md", "zh-CN=README.zh-CN.md"],
+            repo,
+        )
+        report = audit_documents(repo, documents, "en", False)
+        codes = {issue.code for issue in report.issues}
+        self.assertIn("content-link-mismatch", codes)
+
+    def test_locale_neutral_path_requires_an_existing_sibling(self) -> None:
+        repo = FIXTURES / "cross-family-link"
+        self.assertEqual(
+            _locale_neutral_path(repo / "RELEASE_NOTES.zh-CN.md").name,
+            "RELEASE_NOTES.md",
+        )
+        # NOTES.md does not exist, so the locale-looking name is left alone.
+        self.assertEqual(_locale_neutral_path(repo / "NOTES.ja.md").name, "NOTES.ja.md")
+        # A name without a locale segment is returned unchanged.
+        self.assertEqual(_locale_neutral_path(repo / "README.md").name, "README.md")
 
     def test_metadata_snapshot_passes(self) -> None:
         issues = audit_metadata(FIXTURES / "metadata-valid.json")

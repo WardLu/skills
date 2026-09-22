@@ -97,6 +97,36 @@ def _repository_path(path: Path) -> Path:
     return path.expanduser().resolve()
 
 
+def _is_locale_segment(value: str) -> bool:
+    """Return True when ``value`` is a well-formed locale segment."""
+    try:
+        normalize_locale(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _locale_neutral_path(path: Path) -> Path:
+    """Collapse a ``<stem>.<locale><suffix>`` member to its locale-neutral path.
+
+    A localized document may legitimately link to another localized document,
+    for example ``README.zh-CN.md -> RELEASE_NOTES.zh-CN.md``. Each locale then
+    points at its own member of the same document family, so comparing the raw
+    paths would report a false ``content-link-mismatch``. Stripping the locale
+    segment makes the comparison family-based: linking a *different* family
+    from one locale is still reported.
+
+    The locale segment is only stripped when the stripped sibling exists, so an
+    unrelated file that merely looks locale-suffixed is left untouched.
+    """
+    stem, suffix = path.stem, path.suffix
+    head, separator, tail = stem.rpartition(".")
+    if not separator or not head or not _is_locale_segment(tail):
+        return path
+    sibling = path.with_name(f"{head}{suffix}")
+    return sibling if sibling.is_file() else path
+
+
 def _inside_repository(path: Path, repository: Path) -> bool:
     try:
         path.relative_to(repository)
@@ -289,7 +319,7 @@ def _canonical_targets(
                     f"{document.path}: missing local target {target}",
                 )
             )
-        relative = resolved.relative_to(repository).as_posix()
+        relative = _locale_neutral_path(resolved).relative_to(repository).as_posix()
         canonical.add(f"path:{relative}")
     return canonical
 

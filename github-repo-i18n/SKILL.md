@@ -110,7 +110,7 @@ python3 scripts/audit_repo_i18n.py /path/to/repository \
   --format text
 ~~~
 
-The script checks selected-file existence and boundaries, heading and code-fence structure, local link and image targets, optional locale-switch links, and the shape of a supplied metadata snapshot. It does not translate, call external URLs, inspect GitHub, scan for secrets or private material, judge public-release suitability, or modify files.
+The script checks selected-file existence and boundaries, heading and code-fence structure, local link and image targets (comparing cross-locale content links by locale-neutral document family), optional locale-switch links, and the shape of a supplied metadata snapshot. It does not translate, call external URLs, inspect GitHub, scan for secrets or private material, judge public-release suitability, or modify files.
 
 ### 7. Report evidence and hand off
 

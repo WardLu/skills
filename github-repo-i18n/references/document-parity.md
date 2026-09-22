@@ -46,7 +46,10 @@ Use the audit script for facts that can be checked deterministically:
 - heading-level sequences are aligned;
 - fenced-code counts and language markers are aligned;
 - local link and image targets exist;
-- non-locale content link targets are aligned;
+- non-locale content link targets are aligned, comparing each locale's member
+  of a document family by its locale-neutral path, so
+  `README.zh-CN.md -> RELEASE_NOTES.zh-CN.md` matches
+  `README.md -> RELEASE_NOTES.md`;
 - requested locale-switch links are present.
 
 Use manual review for:
