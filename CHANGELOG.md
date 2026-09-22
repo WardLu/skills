@@ -3,6 +3,34 @@
 All released collection-level changes are documented here. Individual skills
 may keep a more detailed changelog in their own directory.
 
+## [0.4.2] - 2026-09-22
+
+### Added
+
+- Added a project-native visual layer to the root READMEs: a hero and a
+  four-step release workflow diagram, in English and Simplified Chinese. Both
+  are pure SVG with their own background and meet WCAG AA text contrast.
+- Made the release notes bilingual. `RELEASE_NOTES.md` is now the English
+  default and the existing Chinese content is preserved as
+  `RELEASE_NOTES.zh-CN.md`; both files link to each other and each root README
+  links to its own locale.
+
+### Changed
+
+- Upgraded github-repo-i18n to v0.1.2. Its parity audit now compares a linked
+  document from another locale family by its locale-neutral path, so a correct
+  locale pair such as `README.zh-CN.md -> RELEASE_NOTES.zh-CN.md` is no longer
+  reported as a content-link mismatch, while genuine family drift still is.
+
+### Fixed
+
+- Backfilled the missing v0.3.0 and v0.4.0 entries in the release notes, so the
+  history no longer jumps from v0.4.1 to v0.2.0.
+
+### Release metadata
+
+- Released as tag and release name `v0.4.2`.
+
 ## [0.4.1] - 2026-09-22
 
 ### Added
