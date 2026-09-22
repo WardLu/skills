@@ -4,6 +4,29 @@
 
 ---
 
+## v0.4.1 - 2026-09-22
+
+> **类型**: 集合级补丁发布（单技能修复与升级）
+> **GitHub Release**: [v0.4.1](https://github.com/WardLu/skills/releases/tag/v0.4.1)
+
+### 技能升级
+
+- **codex-cross-provider-session-repair v0.7.7**：修复「远程压缩契约失败导致会话无法继续」的问题。
+  诊断改为同时读取 rollout 的 `task_complete` 记录（`logs_2.sqlite` 常只剩概括行），
+  读取 `remote_compaction_v2` 的特性阶段，并在该开关已是墓碑项时拒绝写入无效配置；
+  新增离线修复执行器与环回压缩 shim，可在不修改 `config.toml` 的前提下修复单个超限会话。
+
+### 修复
+
+- 修正 `scripts/package.py`：按文档使用 `--output ./dist` 构建时，归档不再把上一版
+  `.skill` 文件嵌套进新归档。
+
+### 发布元数据
+
+- 单技能临时 Tag `codex-cross-provider-session-repair-v0.7.7` 已退役，映射到本集合发布。
+
+---
+
 ## v0.2.0 - 2026-09-02
 
 > **类型**: 大规模能力扩充与 CLI 分发生态建立  
