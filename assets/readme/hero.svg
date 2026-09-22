@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="360" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">WardLu Skills collection identity</title>
+  <desc id="desc">WardLu Skills collection identity and the files that make up one Skill: SKILL.md, VERSION, the bilingual README pair, plus references/ and tests/ when needed.</desc>
+
+  <rect width="1200" height="360" rx="28" fill="#0B0F14"/>
+
+  <g id="identity">
+    <text x="64" y="146" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#6EA8FE" letter-spacing="1.6">OPEN-SOURCE SKILL COLLECTION</text>
+    <text x="64" y="210" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="56" font-weight="700" fill="#E8EDF3">WardLu Skills</text>
+    <text x="64" y="262" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#93A1B0" letter-spacing="1.2">MIT LICENSE · INDEPENDENT VERSIONS</text>
+  </g>
+
+  <g id="skill-anatomy">
+    <rect x="712" y="64" width="424" height="248" rx="18" fill="#171F29" stroke="#2C3746" stroke-width="1.5"/>
+    <text x="748" y="108" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#6EA8FE" letter-spacing="1.2">ONE SKILL</text>
+    <text x="748" y="152" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">SKILL.md</text>
+    <text x="748" y="188" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">VERSION</text>
+    <text x="748" y="224" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">README.md</text>
+    <text x="748" y="260" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="20" fill="#E8EDF3">README.zh-CN.md</text>
+    <text x="748" y="294" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#93A1B0">references/ · tests/ when needed</text>
+  </g>
+</svg>

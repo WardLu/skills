@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="320" viewBox="0 0 1200 320" role="img" aria-labelledby="title desc">
+  <title id="title">从改动到发布</title>
+  <desc id="desc">从修改到发布的四步流程：修改 Skill、运行离线测试、通过仓库校验工作流、发布版本化更新。</desc>
+
+  <rect width="1200" height="320" rx="28" fill="#0B0F14"/>
+  <text x="64" y="68" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="18" fill="#6EA8FE" letter-spacing="1.6">集合工作流</text>
+
+    <g id="stage-1">
+      <rect x="64" y="104" width="244" height="140" rx="16" fill="#171F29" stroke="#2C3746" stroke-width="1.5"/>
+      <text x="88" y="146" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#6EA8FE" letter-spacing="1.2">01</text>
+      <text x="88" y="186" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="20" fill="#E8EDF3">修改 Skill</text>
+      <text x="88" y="216" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#AAB4C0">.SKILL.md · tests</text>
+    </g>
+    <g id="stage-2">
+      <rect x="340" y="104" width="244" height="140" rx="16" fill="#171F29" stroke="#2C3746" stroke-width="1.5"/>
+      <text x="364" y="146" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#6EA8FE" letter-spacing="1.2">02</text>
+      <text x="364" y="186" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="20" fill="#E8EDF3">离线测试</text>
+      <text x="364" y="216" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#AAB4C0">python -m unittest</text>
+    </g>
+    <g id="stage-3">
+      <rect x="616" y="104" width="244" height="140" rx="16" fill="#171F29" stroke="#2C3746" stroke-width="1.5"/>
+      <text x="640" y="146" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#6EA8FE" letter-spacing="1.2">03</text>
+      <text x="640" y="186" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="20" fill="#E8EDF3">仓库校验</text>
+      <text x="640" y="216" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#AAB4C0">.github/workflows</text>
+    </g>
+    <g id="stage-4">
+      <rect x="892" y="104" width="244" height="140" rx="16" fill="#171F29" stroke="#2C3746" stroke-width="1.5"/>
+      <text x="916" y="146" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#6EA8FE" letter-spacing="1.2">04</text>
+      <text x="916" y="186" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', sans-serif" font-size="20" fill="#E8EDF3">版本化发布</text>
+      <text x="916" y="216" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18" fill="#AAB4C0">VERSION + tag</text>
+    </g>
+
+    <g id="arrow-1">
+      <path d="M316 174 L330 174" stroke="#2C3746" stroke-width="2"/>
+      <path d="M326 169 L332 174 L326 179" fill="none" stroke="#2C3746" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="arrow-2">
+      <path d="M592 174 L606 174" stroke="#2C3746" stroke-width="2"/>
+      <path d="M602 169 L608 174 L602 179" fill="none" stroke="#2C3746" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <g id="arrow-3">
+      <path d="M868 174 L882 174" stroke="#2C3746" stroke-width="2"/>
+      <path d="M878 169 L884 174 L878 179" fill="none" stroke="#2C3746" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+</svg>
