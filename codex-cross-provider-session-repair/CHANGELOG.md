@@ -2,6 +2,37 @@
 
 All notable changes to this skill are documented here.
 
+## [0.7.7] - 2026-09-22
+
+### Added
+
+- Detect remote-compaction-v2 failures by scanning the target rollout's
+  `event_msg`/`task_complete` payloads as well as `logs_2.sqlite`, which often
+  keeps only the generic `Failed to run pre-sampling compact` line. The report
+  now prints both evidence sources.
+- Read the `remote_compaction_v2` stage from `codex features list` and include
+  it in the diagnostic summary. `scripts/repair.py` gains `--codex-bin` for
+  that lookup and a probe opt-out environment variable for offline tests.
+- Add `scripts/compaction_shim.py`: a loopback shim that answers remote
+  compaction v2 requests on behalf of a backend that does not implement it, and
+  expands replayed compaction items back into readable context. The shim must
+  remain in the request path while it is in use.
+- Add `scripts/repair_session_offline.py`: repair one over-limit session while
+  Codex is quit. It backs up the rollout and root state database beside their
+  originals, routes one turn through the shim with temporary `-c` overrides,
+  pins the session's own model, and verifies the `compacted` record count, a
+  null `task_complete` error, and an unchanged session model.
+- Add an eval covering the remote-compaction contract failure.
+
+### Fixed
+
+- Refuse `--disable-remote-compaction` with exit code 2 when the installed
+  build reports `remote_compaction_v2` as `removed`, instead of writing a
+  config key that Codex ignores. Such builds have no config switch and no local
+  compaction fallback, so the report now points at the provider-side options.
+- Report the desktop app's thread writer lock (`already has an active writer`)
+  as an actionable blocker instead of retrying the repair blindly.
+
 ## [0.7.5] - 2026-08-15
 
 ### Fixed

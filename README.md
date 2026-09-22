@@ -22,7 +22,7 @@ Choose a Skill by the task you want to complete:
 | Skill | Use it for | Version | Documentation |
 | --- | --- | --- | --- |
 | `agent-privacy-check` | Audit what an agent can access, where data can leave, and the plain-language privacy risk. | `0.1.0` | [English](agent-privacy-check/README.md) · [简体中文](agent-privacy-check/README.zh-CN.md) |
-| `codex-cross-provider-session-repair` | Recover an old Codex Desktop conversation after a provider, import, or fork problem. | `0.7.6` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
+| `codex-cross-provider-session-repair` | Recover an old Codex Desktop conversation after a provider, import, or fork problem. | `0.7.7` | [English](codex-cross-provider-session-repair/README.md) · [简体中文](codex-cross-provider-session-repair/README.zh-CN.md) |
 | `codex-doctor` | Analyze local Codex session telemetry and find evidence-backed workflow improvements. | `0.1.2` | [English](codex-doctor/README.md) · [简体中文](codex-doctor/README.zh-CN.md) |
 | `github-repo-i18n` | Keep selected repository documentation aligned across locales. | `0.1.1` | [English](github-repo-i18n/README.md) · [简体中文](github-repo-i18n/README.zh-CN.md) |
 | `public-release-gate` | Review release metadata, artifacts, licenses, deployment state, and attachments. | `0.1.4` | [English](public-release-gate/README.md) · [简体中文](public-release-gate/README.zh-CN.md) |

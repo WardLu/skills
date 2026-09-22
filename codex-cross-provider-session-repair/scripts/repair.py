@@ -13,6 +13,7 @@ import os
 import re
 import shutil
 import sqlite3
+import subprocess
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -180,8 +181,11 @@ def read_remote_compaction_error(database: Path, session_id: str) -> bool:
 
     These failures mean the current provider/model did not return the
     ``type: "compaction"`` output item that Codex remote compaction v2
-    requires. The fix is not a session rewrite: the user should disable
-    remote compaction or switch to a provider/model that supports it.
+    requires. The fix is not a session rewrite.
+
+    ``logs_2.sqlite`` often keeps only the generic
+    ``Failed to run pre-sampling compact`` line, so this database is one of two
+    evidence sources; see :func:`rollout_remote_compaction_error` for the other.
     """
     if not database.is_file():
         return False
@@ -208,6 +212,97 @@ def read_remote_compaction_error(database: Path, session_id: str) -> bool:
                 connection.close()
         except Exception:
             pass
+
+
+def rollout_remote_compaction_error(records: list[dict[str, Any] | None]) -> bool:
+    """Check the rollout itself for a remote-compaction-v2 failure.
+
+    Codex writes the detailed message into ``event_msg``/``task_complete``
+    payloads. When the backend answers a compaction request with a normal
+    message, ``logs_2.sqlite`` only records the generic
+    ``Failed to run pre-sampling compact`` line, so scanning the rollout is the
+    only way to detect this failure mode reliably.
+    """
+    for record in records:
+        if not record:
+            continue
+        payload = record.get("payload") or {}
+        error = payload.get("error")
+        if isinstance(error, dict):
+            message = error.get("message")
+            if isinstance(message, str) and REMOTE_COMPACTION_ERROR_RE.search(message):
+                return True
+        elif isinstance(error, str) and REMOTE_COMPACTION_ERROR_RE.search(error):
+            return True
+    return False
+
+
+REMOTE_COMPACTION_FEATURE = "remote_compaction_v2"
+FEATURE_LIST_TIMEOUT_SECONDS = 20
+FEATURE_PROBE_OPT_OUT_ENV = "CODEX_SESSION_REPAIR_NO_FEATURE_PROBE"
+
+
+def find_codex_binary(codex_home: Path, override: str | None = None) -> str | None:
+    """Locate a Codex CLI binary, preferring an explicit override."""
+    if override:
+        candidate = Path(override).expanduser()
+        if candidate.is_file():
+            return str(candidate)
+        return shutil.which(override)
+    for name in ("codex", "codex-cli"):
+        found = shutil.which(name)
+        if found:
+            return found
+    if os.name == "nt":
+        local = os.environ.get("LOCALAPPDATA")
+        if local:
+            for name in ("codex.exe", "codex.cmd"):
+                candidate = Path(local) / "Programs" / "codex" / name
+                if candidate.is_file():
+                    return str(candidate)
+    for candidate in (
+        Path("/Applications/ChatGPT.app/Contents/Resources/codex"),
+        Path("/Applications/Codex.app/Contents/Resources/codex"),
+        Path.home() / "Applications" / "ChatGPT.app" / "Contents" / "Resources" / "codex",
+    ):
+        if candidate.is_file():
+            return str(candidate)
+    return None
+
+
+def read_feature_stage(codex_home: Path, override: str | None = None) -> str | None:
+    """Return the ``codex features list`` stage for remote compaction v2.
+
+    Typical values are ``stable``, ``experimental``, ``under development``,
+    ``deprecated``, or ``removed``. ``removed`` means the flag is a tombstone:
+    Codex no longer reads it, so writing ``remote_compaction_v2 = false`` to
+    ``config.toml`` changes nothing and can never satisfy a failing compaction.
+    Returns ``None`` when the CLI is unavailable or its output is unparseable.
+    """
+    if os.environ.get(FEATURE_PROBE_OPT_OUT_ENV):
+        return None
+    binary = find_codex_binary(codex_home, override)
+    if not binary:
+        return None
+    env = dict(os.environ)
+    env["CODEX_HOME"] = str(codex_home)
+    try:
+        completed = subprocess.run(
+            [binary, "features", "list"],
+            capture_output=True,
+            text=True,
+            timeout=FEATURE_LIST_TIMEOUT_SECONDS,
+            env=env,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if completed.returncode != 0:
+        return None
+    for line in completed.stdout.splitlines():
+        fields = line.split()
+        if len(fields) >= 2 and fields[0] == REMOTE_COMPACTION_FEATURE:
+            return fields[1]
+    return None
 
 
 def detect_compaction_model_turn(records: list[dict[str, Any] | None]) -> dict[str, Any]:
@@ -340,7 +435,9 @@ def read_structured_models(records: list[dict[str, Any] | None]) -> list[str]:
     return models
 
 
-def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
+def inspect_session(
+    codex_home: Path, session_id: str, codex_bin: str | None = None
+) -> dict[str, Any]:
     rollout = find_rollout(codex_home, session_id)
     lines, records, parse_errors = read_jsonl(rollout)
     session_meta: list[dict[str, Any]] = []
@@ -367,6 +464,8 @@ def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
     model_turn_info = detect_compaction_model_turn(records)
     model_turn_info["logged_error"] = read_model_turn_error(logs_db, session_id)
     remote_compaction_error = read_remote_compaction_error(logs_db, session_id)
+    rollout_compaction_error = rollout_remote_compaction_error(records)
+    feature_stage = read_feature_stage(codex_home, codex_bin)
     return {
         "session_id": session_id,
         "codex_home": str(codex_home),
@@ -386,7 +485,10 @@ def inspect_session(codex_home: Path, session_id: str) -> dict[str, Any]:
         "model_turn": model_turn_info,
         "remote_compaction": {
             "logged_error": remote_compaction_error,
-            "unsupported": remote_compaction_error,
+            "rollout_error": rollout_compaction_error,
+            "unsupported": remote_compaction_error or rollout_compaction_error,
+            "feature_stage": feature_stage,
+            "feature_toggleable": feature_stage != "removed",
         },
     }
 
@@ -681,22 +783,39 @@ def print_report(report: dict[str, Any], as_json: bool) -> None:
     )
 
     rc = safe.get("remote_compaction", {})
-    if rc.get("logged_error"):
+    stage = rc.get("feature_stage")
+    print(
+        f"Remote compaction v2: feature={stage or 'unknown'}"
+        f" | error evidence: rollout={'yes' if rc.get('rollout_error') else 'no'}"
+        f" logs={'yes' if rc.get('logged_error') else 'no'}"
+    )
+    if rc.get("unsupported"):
         print()
         print("Remote compaction not supported by current provider/model:")
         print("  The backend did not return the `type: \"compaction\"` output item that Codex")
         print("  remote compaction v2 requires (error: 'expected exactly one compaction")
         print("  output item, got 0 from N output items').")
-        print("  Fix: disable remote compaction (add `remote_compaction_v2 = false` under")
-        print("  `[features]` in config.toml, or run with --disable-remote-compaction")
-        print("  after user approval), or switch to a provider/model that supports it,")
-        print("  then fully quit and relaunch Codex Desktop.")
+        if stage == "removed":
+            print("  This build reports remote_compaction_v2 as `removed`: the flag is a tombstone,")
+            print("  `codex features list` ignores overrides for it, and there is no local")
+            print("  compaction fallback. Writing it to config.toml cannot help. Either satisfy the")
+            print("  contract on the server side (see scripts/compaction_shim.py and")
+            print("  scripts/repair_session_offline.py) or use a backend that implements it.")
+        else:
+            print("  Fix: disable remote compaction (add `remote_compaction_v2 = false` under")
+            print("  `[features]` in config.toml, or run with --disable-remote-compaction")
+            print("  after user approval), or switch to a provider/model that supports it,")
+            print("  then fully quit and relaunch Codex Desktop.")
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--session-id", required=True, help="Target Codex session UUID")
     parser.add_argument("--codex-home", help="Override CODEX_HOME")
+    parser.add_argument(
+        "--codex-bin",
+        help="Codex CLI used to read `features list` (optional; auto-detected when omitted)",
+    )
     parser.add_argument("--provider", help="Current provider to write when --fix-provider is used")
     parser.add_argument("--fix-provider", action="store_true", help="Repair target session_meta and DB provider")
     parser.add_argument("--model", help="Target model to write when --fix-model is used")
@@ -728,13 +847,21 @@ def main(argv: Iterable[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     try:
         codex_home = resolve_codex_home(args.codex_home)
-        report = inspect_session(codex_home, args.session_id)
+        report = inspect_session(codex_home, args.session_id, args.codex_bin)
         print_report(report, args.json)
         if not args.apply:
             print("Dry run only. Re-run with --apply after fully quitting Codex Desktop.")
             return 0
         if report["json_parse_errors"]:
             raise ValueError("refusing to apply: JSONL has parse errors")
+        if args.disable_remote_compaction and report["remote_compaction"].get("feature_stage") == "removed":
+            raise ValueError(
+                "--disable-remote-compaction is not available on this Codex build: "
+                "`codex features list` reports remote_compaction_v2 as `removed`, so the flag "
+                "is a tombstone and writing it to config.toml has no effect. Use "
+                "scripts/repair_session_offline.py with scripts/compaction_shim.py, or switch "
+                "to a backend that implements remote compaction v2."
+            )
         if args.fix_provider and not args.provider:
             raise ValueError("--fix-provider requires --provider")
         if args.fix_model and not args.model:
@@ -787,7 +914,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             else:
                 print("Remote compaction already disabled in config.toml; no change.")
         print("Post-repair report:")
-        print_report(inspect_session(codex_home, args.session_id), args.json)
+        print_report(inspect_session(codex_home, args.session_id, args.codex_bin), args.json)
         return 0
     except (OSError, ValueError, FileNotFoundError) as exc:
         print(f"ERROR: {exc}", file=sys.stderr)

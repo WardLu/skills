@@ -1,5 +1,7 @@
 import json
 import io
+import os
+import platform
 import sqlite3
 import sys
 import tempfile
@@ -13,6 +15,15 @@ import repair  # noqa: E402
 
 SESSION_ID = "019fb8f5-5fcc-74c0-8341-61f83f2126ce"
 SESSION_ID_MT = "019fc2cb-5370-7d32-899c-89310a4e370a"
+
+
+def setUpModule():
+    # Keep the suite hermetic: never shell out to a real Codex CLI.
+    os.environ[repair.FEATURE_PROBE_OPT_OUT_ENV] = "1"
+
+
+def tearDownModule():
+    os.environ.pop(repair.FEATURE_PROBE_OPT_OUT_ENV, None)
 
 
 def event(kind, payload):
@@ -162,6 +173,71 @@ class RepairTests(unittest.TestCase):
         report = repair.inspect_session(self.home, SESSION_ID)
         self.assertTrue(report["remote_compaction"]["logged_error"])
         self.assertTrue(report["remote_compaction"]["unsupported"])
+
+    def test_reports_remote_compaction_error_recorded_only_in_rollout(self):
+        # Real-world case: logs_2.sqlite keeps only "Failed to run pre-sampling
+        # compact"; the detailed message lives in the rollout's task_complete.
+        with self.session_path.open("a", encoding="utf-8") as handle:
+            handle.write(event("event_msg", {
+                "type": "task_complete",
+                "error": {"message": "Error running remote compact task: Fatal error: "
+                                     "remote compaction v2 expected exactly one "
+                                     "compaction output item, got 0 from 1 output items"},
+            }))
+
+        report = repair.inspect_session(self.home, SESSION_ID)
+        self.assertTrue(report["remote_compaction"]["rollout_error"])
+        self.assertFalse(report["remote_compaction"]["logged_error"])
+        self.assertTrue(report["remote_compaction"]["unsupported"])
+
+    def test_reports_no_remote_compaction_error_without_evidence(self):
+        report = repair.inspect_session(self.home, SESSION_ID)
+        self.assertFalse(report["remote_compaction"]["rollout_error"])
+        self.assertFalse(report["remote_compaction"]["unsupported"])
+
+    @unittest.skipIf(platform.system() == "Windows", "requires a POSIX shell stub")
+    def test_read_feature_stage_parses_cli_output(self):
+        fake = self.home.parent / "fake-codex"
+        fake.write_text(
+            "#!/bin/sh\n"
+            'echo "remote_compaction_v2                     removed            false"\n',
+            encoding="utf-8",
+        )
+        fake.chmod(0o755)
+        os.environ.pop(repair.FEATURE_PROBE_OPT_OUT_ENV, None)
+        try:
+            self.assertEqual(repair.read_feature_stage(self.home, str(fake)), "removed")
+        finally:
+            os.environ[repair.FEATURE_PROBE_OPT_OUT_ENV] = "1"
+
+    def test_main_refuses_disable_when_feature_is_removed(self):
+        original = repair.read_feature_stage
+        repair.read_feature_stage = lambda *args, **kwargs: "removed"
+        try:
+            config = self.home / "config.toml"
+            before = config.read_text(encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                code = repair.main(["--session-id", SESSION_ID, "--codex-home", str(self.home),
+                                    "--disable-remote-compaction", "--apply"])
+            self.assertEqual(code, 2)
+            self.assertEqual(config.read_text(encoding="utf-8"), before)
+            self.assertFalse(list(config.parent.glob("config.toml.bak-*")))
+        finally:
+            repair.read_feature_stage = original
+
+    def test_main_allows_disable_when_feature_is_toggleable(self):
+        original = repair.read_feature_stage
+        repair.read_feature_stage = lambda *args, **kwargs: "experimental"
+        try:
+            config = self.home / "config.toml"
+            config.write_text('model_provider = "custom"\n[features]\n', encoding="utf-8")
+            with redirect_stdout(io.StringIO()):
+                code = repair.main(["--session-id", SESSION_ID, "--codex-home", str(self.home),
+                                    "--disable-remote-compaction", "--apply"])
+            self.assertEqual(code, 0)
+            self.assertIn("remote_compaction_v2 = false", config.read_text(encoding="utf-8"))
+        finally:
+            repair.read_feature_stage = original
 
     def test_disable_remote_compaction_adds_feature(self):
         config = self.home / "config.toml"

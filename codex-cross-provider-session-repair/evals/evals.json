@@ -33,6 +33,17 @@
         "The response requests evidence before modifying local state.",
         "The response separates session corruption from transport/authentication failures."
       ]
+    },
+    {
+      "id": 4,
+      "prompt": "One Codex session fails on every turn with 'Error running remote compact task: Fatal error: remote compaction v2 expected exactly one compaction output item, got 0 from 1 output items'. It runs through a local proxy to a non-OpenAI model, and `codex features list` reports remote_compaction_v2 as removed. Fix that one conversation without disturbing my other sessions.",
+      "expected_output": "The diagnosis finds the error in the rollout (logs_2.sqlite only holds the generic pre-sampling line), recognizes that a removed flag cannot be toggled, and repairs the one session through the offline runner while Codex is quit, reporting compacted-count evidence and an unchanged model.",
+      "files": [],
+      "expectations": [
+        "The response does not recommend writing remote_compaction_v2 = false to config.toml.",
+        "The repair stays scoped to the session and backs up the rollout and state database beside their originals.",
+        "The response requires Codex to be fully quit before the offline run and reports the compacted-record count and task_complete error before and after."
+      ]
     }
   ]
 }

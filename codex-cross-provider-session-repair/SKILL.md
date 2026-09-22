@@ -3,7 +3,7 @@ name: codex-cross-provider-session-repair
 description: Repair Codex Desktop sessions that fail after switching model providers or importing/forking old conversations. Use this skill whenever a user mentions an old Codex session becoming invalid, “model provider not found”, “Codex cannot load config.toml”, remote context compaction 404s, “Item with id rs_... not found”, repeated reconnecting during resume, or a migrated Codex conversation that cannot continue—even when the user only asks to inspect or explain the failure. Diagnose the target session across its JSONL rollout, root state_5.sqlite, config.toml, and logs_2.sqlite, then make a target-scoped backup-first repair with verification and restart instructions.
 license: MIT
 metadata:
-  version: "0.7.6"
+  version: "0.7.7"
   repository: "https://github.com/WardLu/skills/tree/main/codex-cross-provider-session-repair"
   maintainer: "Ward Lu"
 ---
@@ -79,13 +79,28 @@ A fourth failure occurs when the current provider/model does not implement
 Codex's remote compaction v2. The turn fails with `Error running remote compact
 task: Fatal error: remote compaction v2 expected exactly one compaction output
 item, got 0 from N output items`. This is not a JSONL corruption: the backend
-simply did not return the `type: "compaction"` output item Codex requires. The
-report prints a user-friendly hint and the operator should either disable
-remote compaction or switch to a provider/model that supports it. The script
-offers `--disable-remote-compaction` (requires `--apply` and explicit user
-approval) to write `remote_compaction_v2 = false` under `[features]` in
-config.toml with a backup; after applying, fully quit and relaunch Codex
-Desktop.
+simply did not return the `type: "compaction"` output item Codex requires.
+
+Detection reads two sources, because Codex frequently records only the generic
+`Failed to run pre-sampling compact` line in `logs_2.sqlite` while the detailed
+message lands in the rollout's `event_msg`/`task_complete` payload. The report
+line `Remote compaction v2: feature=<stage> | error evidence: ...` shows both.
+
+The remedy depends on the feature stage reported by `codex features list`:
+
+* **Toggleable** (`stable`, `experimental`, …): the operator may disable the
+  feature with `--disable-remote-compaction` (requires `--apply` and explicit
+  user approval), which writes `remote_compaction_v2 = false` under `[features]`
+  in config.toml with a backup, or switch to a provider/model that supports it.
+* **`removed`**: the flag is a tombstone. Codex ignores the config key and there
+  is no local compaction fallback, so the script refuses
+  `--disable-remote-compaction` with exit code 2. The contract has to be
+  satisfied on the server side, or the conversation must move to a backend that
+  implements remote compaction v2.
+
+Compaction is mandatory in such builds, so an over-limit session cannot
+continue until the contract is met. `scripts/repair_session_offline.py` performs
+that repair against the failing session without editing `config.toml`.
 
 A fifth failure occurs when an imported session is pinned to a model that the
 current ChatGPT account cannot use, such as `ark-code-latest`. The report
@@ -103,6 +118,7 @@ reasoning records.
 - Never treat a task-bound background waiter, a closed tool session, or a returned process exit code without a backup as proof that a repair ran. The independent wait wrapper must end in `verified`.
 - Never delete the whole Codex home, all sessions, `config.toml`, auth tokens, caches, or databases as a generic “reset”.
 - Preserve every user message, visible assistant message, tool call, tool result, and `event_msg`. Only remove `response_item` records whose payload type is `reasoning`, and only when the diagnosis supports the stale-compaction repair.
+- Prefer the target-scoped offline repair (`scripts/repair_session_offline.py`) over a global `config.toml` change when the remote-compaction flag is a tombstone or the user declines a global edit. It backs up files beside their originals and leaves no daemon running.
 - Do not print auth tokens, refresh tokens, API keys, or complete session contents. Redact paths and secrets in reports.
 - If the target rollout cannot be found, JSON parsing fails, or a backup cannot be created, stop and report the blocker instead of guessing.
 
@@ -222,6 +238,46 @@ python scripts/repair.py --session-id <UUID> --codex-home <CODEX_HOME> \
 
 This removes `thread_rolled_back` event records so that previously rolled-back turns (which typically contain the trailing user message) become effective again. If the last effective message is still `assistant` after rollback removal, a dummy `user` message is appended to satisfy Gemini's requirement. The repair can be combined with `--fix-provider` and `--remove-reasoning` in the same invocation.
 
+**Remote compaction contract failure.** When the report shows error evidence for
+remote compaction and the feature stage is `removed` (or the user declines a
+global config change), repair the session offline instead of editing
+`config.toml`:
+
+1. Ask the user to fully quit Codex. The desktop app keeps a writer lock on the
+   thread (`<CODEX_HOME>/thread-writer-locks/<uuid>.lock`), and
+   `codex exec resume` fails with `already has an active writer` while it is
+   held, even after the thread is no longer visible in the UI.
+2. Preview the plan:
+
+   ```text
+   python scripts/repair_session_offline.py --session-id <UUID> --codex-home <CODEX_HOME>
+   ```
+
+3. Apply it:
+
+   ```text
+   python scripts/repair_session_offline.py --session-id <UUID> --codex-home <CODEX_HOME> --apply
+   ```
+
+The runner backs up the rollout and the root state database beside their
+originals, starts `scripts/compaction_shim.py` on a loopback port, drives one
+turn through it with a temporary
+`-c model_providers.<provider>.base_url=...` override, then verifies a new
+`compacted` record, a null `task_complete` error, and an unchanged session
+model. It never edits `config.toml` and leaves no process behind.
+
+Useful flags: `--model` pins the repair turn (by default the runner pins the
+session's own recorded model, because `codex exec resume` would otherwise
+rewrite the session to the current config default); `--compact-token-limit <n>`
+forces compaction when the session is only just under the threshold; `--json`
+emits a machine-readable summary.
+
+After a verified run, tell the user to reopen Codex and continue the session
+through the ordinary provider URL — the shim is only needed for the repair
+turn. If the shim must stay in the request path (for example because the
+session will cross the threshold again), document the topology and warn that
+every request fails while the shim is not running.
+
 ### 4. Verify the file and database
 
 Run the script again without `--apply`, or use its `--verify` output. Confirm:
@@ -234,6 +290,12 @@ Run the script again without `--apply`, or use its `--verify` output. Confirm:
 - a new backup was created by this apply, not just a zero exit code; and
 - no unrelated session was changed;
 - the `Model-turn compaction` line shows `ok` (not `RISK`) and `last_role=user` when `--fix-model-turn` was applied.
+
+For an offline compaction repair, confirm instead that: the `compacted` record
+count increased, the last `task_complete` error is `null`, the session model
+still matches what it was before the run, and an independent turn succeeds
+through the normal provider URL without the shim. The runner prints all four;
+`verified: true` in its JSON output means every check passed.
 
 The report labels log-derived IDs as `Historical remote stale IDs (from logs)`.
 That list may remain after a successful repair because it is historical evidence.
@@ -255,8 +317,12 @@ Install this skill with `npx skills add WardLu/skills --skill codex-cross-provid
 - `scripts/repair.py` — deterministic, backup-first diagnosis and target-scoped repair.
 - `scripts/start_repair.py` — recommended consent-to-terminal launcher; opens a readable 120×36 Terminal tab/window on macOS, hides the long worker command behind a temporary runner, and starts the worker even when Codex was already closed.
 - `scripts/wait_and_repair.py` — process-aware wait/apply/verify wrapper for use from an independent Terminal. It fails closed if Codex was not detected initially, reappears during the stability window, or changes the rollout while waiting.
+- `scripts/compaction_shim.py` — optional loopback shim that supplies Codex remote compaction v2 on behalf of a backend that does not implement it. It must remain in the request path while it is in use, otherwise every request through that provider URL fails.
+- `scripts/repair_session_offline.py` — runs that shim for one over-limit session while Codex is quit, with backup-first writes and count-based verification. It never edits `config.toml`.
 - `tests/test_repair.py` — offline tests using temporary fake Codex homes and SQLite databases.
 - `tests/test_wait_and_repair.py` — offline tests for process lifecycle, rollout race protection, status files, and end-to-end verification.
+- `tests/test_compaction_shim.py` — offline tests for request classification, summary encoding, replay expansion, and a live handler round trip against a fake upstream.
+- `tests/test_repair_session_offline.py` — offline tests for the repair runner using a fake Codex CLI: dry run, verification, writer-lock blocker, backups, and refusals.
 - `README.md` — installation, upgrade, release, and troubleshooting guide.
 
 ## Documentation
@@ -265,4 +331,4 @@ The English installation and maintenance guide is `README.md`; Simplified Chines
 
 ## Report format
 
-Give the user a concise result with: root cause, exact target session, files changed, backup paths, verification counts, whether the independent process-aware run reached `verified`, whether an independent smoke test reached `Context compacted`, and the one required restart step. When the wait ends in a timeout, explicitly state that the configured wait limit was reached, no files were changed, and the user must fully quit Codex before retrying. Never include credentials or full JSONL lines.
+Give the user a concise result with: root cause, exact target session, files changed, backup paths, verification counts, whether the independent process-aware run reached `verified`, whether an independent smoke test reached `Context compacted`, and the one required restart step. For an offline compaction repair, state the `compacted` count before and after, that the last `task_complete` error is now null, and whether the session model is unchanged. When the wait ends in a timeout, explicitly state that the configured wait limit was reached, no files were changed, and the user must fully quit Codex before retrying. Never include credentials or full JSONL lines.
